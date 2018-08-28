@@ -1,0 +1,27 @@
+DIR_INC = -I../include -I../../10-common/include
+DIR_SRC = ../source
+DIR_OBJ = ../object
+DIR_BIN = ../bin
+DIR_LIB = ../../10-common/lib/release/linux
+
+SRC = $(wildcard ${DIR_SRC}/*.c)
+OBJ = $(patsubst %.c,${DIR_OBJ}/%.o,$(notdir ${SRC})) 
+
+BIN_TARGET_OBJ = main
+LIB_TARGET_OBJ = acl_lib.a
+
+BIN_TARGET = ${DIR_BIN}/${BIN_TARGET_OBJ}
+LIB_TARGET = ${DIR_LIB}/${LIB_TARGET_OBJ}
+
+CC = gcc #arm-hisiv300-linux-g++
+AR = ar cr
+CFLAGS = ${DIR_INC}
+
+${LIB_TARGET}:${OBJ}
+	$(AR) $@ $(OBJ)
+    
+${DIR_OBJ}/%.o:${DIR_SRC}/%.c
+	$(CC) $(CFLAGS) -c  $< -o $@
+.PHONY:clean
+clean:
+	find ${DIR_OBJ} -name "*.o" -exec rm -rf {} \;
