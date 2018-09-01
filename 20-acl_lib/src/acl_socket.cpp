@@ -120,7 +120,7 @@ int  aclConnect3AThread(void * pParam);
 #endif
 
 #ifdef WIN32
-int  __stdcall aclHBDetectThread(void * pParam);
+unsigned int  __stdcall aclHBDetectThread(void * pParam);
 #elif defined _LINUX_
 void * aclHBDetectThread(void * pParam);
 #endif
@@ -297,6 +297,50 @@ ACL_API int aclTCPConnect__(s8 * pNodeIP, u16 wPort)
 	ACL_DEBUG(E_MOD_NETWORK, E_TYPE_NOTIF, "[aclTCPConnect] SOCK[%d] connect success, insert select loop inner ID %d\n", hSocket, dwInnerID);
 	nRet = aclInsertSelectLoop(getSockDataManger(), hSocket, aclNewMsgProcess, ESELECT_READ, dwInnerID, getSockDataManger());
 	return nRet;//((TAclMessage *)szRcvSnd3AData)->m_dwSessionID;
+}
+
+//=============================================================================
+//函 数 名：aclConnClose__
+//功	    能：作为客户端连接ACL服务器
+//算法实现：
+//全局变量：
+//参	    数：nNode:连接节点
+//注    意: 
+//=============================================================================
+ACL_API int aclConnClose__(int nNode)
+{
+	TSockManage * ptSockManage = (TSockManage *)getSockDataManger();
+	TSockNode * ptNewNode = NULL;
+	u32 dwFindNode = (u32)nNode;
+	int i = 0;
+	CHECK_NULL_RET_INVALID(ptSockManage);
+	lockLock(ptSockManage->m_hLock);
+	BOOL bFind = FALSE;
+	for (i = 0; i < MAX_NODE_SUPPORT; i++)
+	{
+		//尝试寻找需要关闭的节点所在位置
+		if (ptSockManage->m_dwNodeMap[i] == dwFindNode)
+		{
+			bFind = TRUE;
+			break;
+		}
+	}
+	if (!bFind)
+	{
+		lockLock(ptSockManage->m_hLock);
+		return ACL_ERROR_FAILED;
+	}
+
+	//找到节点了 
+	if (!ptSockManage->m_ptSockNodeArr[i].m_bIsUsed)
+	{
+		lockLock(ptSockManage->m_hLock);
+		return ACL_ERROR_FAILED;
+	}
+	aclRemoveSelectLoop(getSockDataManger(), ptSockManage->m_ptSockNodeArr[i].m_hSock);
+	lockLock(ptSockManage->m_hLock);
+	return ACL_ERROR_NOERROR;
+
 }
 
 
@@ -1269,7 +1313,7 @@ int  aclDataProcThread(void * pParam)
 //
 //=============================================================================
 #ifdef WIN32
-int  __stdcall aclHBDetectThread(void * pParam)
+unsigned int  __stdcall aclHBDetectThread(void * pParam)
 #elif defined _LINUX_
 void * aclHBDetectThread(void * pParam)
 #endif

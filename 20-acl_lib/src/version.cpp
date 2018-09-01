@@ -11,8 +11,8 @@
 //******************************************************************************
 #include "version.h"
 #define VER_MAIN 0 //发布版本
-#define VER_SUB1 1 //功能添加修改，优化
-#define VER_SUB2 5 //Bug修正
+#define VER_SUB1 2 //功能添加修改，优化
+#define VER_SUB2 6 //Bug修正
 
 
 #define STR(s)     #s

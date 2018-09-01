@@ -145,7 +145,7 @@ void cbTimerRegCBProc(TAclMessage *ptMsg, HACLINST hInst)
 //         定时器计时循环为 1ms，因为精度原因，定时器定时最好要 > 50ms
 //=============================================================================
 #ifdef WIN32
-int __stdcall  aclTimerManage(void * pParam)
+unsigned int __stdcall  aclTimerManage(void * pParam)
 #elif defined (_LINUX_)
 void * aclTimerManage(void * pParam)
 #endif
@@ -300,7 +300,7 @@ ACL_API u32 aclGetTickCount()
 //定时器时钟线程，任务就是在配置的时间内准时释放信号量，作为基准时钟，
 //让定时器管理线程准时工作。
 #ifdef WIN32
-int __stdcall  aclTimerClock(void * pParam)
+unsigned int __stdcall  aclTimerClock(void * pParam)
 #elif defined (_LINUX_)
 void * aclTimerClock(void * pParam)
 #endif

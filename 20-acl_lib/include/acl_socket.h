@@ -26,6 +26,7 @@
 
 //+++ begin interface
 ACL_API int aclTCPConnect__(s8 * pNodeIP, u16 wPort);
+ACL_API int aclConnClose__(int nNode);
 //--- end interface
 
 int  inet_aton(const char *cp, struct in_addr *ap);

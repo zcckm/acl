@@ -54,6 +54,17 @@ ACL_API int aclTCPConnect(s8 * pNodeIP, u16 wPort)
     return aclTCPConnect__(pNodeIP,  wPort);
 }
 
+//close connect Socket
+ACL_API int aclConnClose(int nNode)
+{
+	if (nNode <= 0)
+	{
+		return ACL_ERROR_PARAM;
+	}
+	
+	return aclConnClose__(nNode);
+}
+
 ACL_API ACL_HANDLE setTimer_b(int nTime, 
     u32 dwAppInsAddr,
     u16 wMsgType, 

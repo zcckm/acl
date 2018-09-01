@@ -236,8 +236,9 @@ int insertAclMsg(PTMSG_QUEUE ptAclMsgQueue,TAclMessage * ptAclMsg)
     if (ptAclMsgQueue->LAEP->ptNext == ptAclMsgQueue->LACP)// loop msg is full, return 
     {
 	//模式改为覆盖没有处理的消息，后续会修改成为可配置类型
-//        unlockLock(ptAclMsgQueue->hQueLock);
-//        return ACL_ERROR_OVERFLOW;
+		ptAclMsgQueue->dwDropMsgCount++;
+       unlockLock(ptAclMsgQueue->hQueLock);
+       return ACL_ERROR_OVERFLOW;
         ptAclMsgQueue->LACP = ptAclMsgQueue->LACP->ptNext;
 		aclPrintf(TRUE, FALSE, "[insertAclMsg] overflow, Msg SRC_ID: %X DST_ID: %X\n", ptAclMsg->m_dwSrcIID, ptAclMsg->m_dwDstIID);
     }
@@ -289,7 +290,7 @@ int insertAclMsg(PTMSG_QUEUE ptAclMsgQueue,TAclMessage * ptAclMsg)
 
     }
     ptAclMsgQueue->LAEP = ptAclMsgQueue->LAEP->ptNext;
-
+	ptAclMsgQueue->m_nCurQueMembNum++;
     aclReleaseSem(&ptAclMsgQueue->hQueSem);//insert one msg,so release one sem
     unlockLock(ptAclMsgQueue->hQueLock);
     return ACL_ERROR_NOERROR;
@@ -428,6 +429,12 @@ ACL_API int getAclMsg(PTMSG_QUEUE ptAclMsgQueue,TAclMessage * ptMsg,int * pnMsgL
     * pnMsgLen = ptAclMsgQueue->LACP->nContentLen;
 
     ptAclMsgQueue->LACP = ptAclMsgQueue->LACP->ptNext;
+
+	//队列消息号--
+	ptAclMsgQueue->m_nCurQueMembNum--;
+
+	//处理的消息号++
+	ptAclMsgQueue->dwHandleMsgCount++;
 
     unlockLock(ptAclMsgQueue->hQueLock);
     return ACL_ERROR_NOERROR;

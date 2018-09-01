@@ -111,7 +111,7 @@ ACL_API int aclMsgPushAppUnInit();
 ACL_API int aclHBDetectInit(int nInstNum ,CBMsgEntry pfMsgCB);
 ACL_API int aclHBDetectUnInit();
 #ifdef WIN32
-ACL_API int __stdcall aclInstanceManageThread(void * param);
+ACL_API unsigned int __stdcall aclInstanceManageThread(void * param);
 #elif defined (_LINUX_)
 ACL_API void * aclInstanceManageThread(void * param);
 #endif
@@ -806,7 +806,7 @@ ACL_API TAclInstance * aclCreateInstance(TAclApp * ptAclApp,int nInstID)
 //并交出管理权
 //=============================================================================
 #ifdef WIN32
-ACL_API int __stdcall aclInstanceManageThread(void * param)
+ACL_API unsigned int __stdcall aclInstanceManageThread(void * param)
 #elif defined (_LINUX_)
 ACL_API void * aclInstanceManageThread(void * param)
 #endif
