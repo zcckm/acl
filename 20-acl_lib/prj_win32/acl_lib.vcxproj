@@ -81,6 +81,7 @@
   <ItemGroup>
     <ClInclude Include="..\..\10-common\include\acltype.h" />
     <ClInclude Include="..\..\10-common\include\acl_c.h" />
+    <ClInclude Include="..\include\acl_common.h" />
     <ClInclude Include="..\include\acl_lock.h" />
     <ClInclude Include="..\include\acl_manage.h" />
     <ClInclude Include="..\include\acl_memory.h" />

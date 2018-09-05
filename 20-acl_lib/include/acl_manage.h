@@ -25,6 +25,8 @@ ACL_API int aclInit(BOOL bTelnet, u16 wTelPort);
 ACL_API void aclQuit();
 
 ACL_API int aclCreateApp__(u16 nNewAppID,const s8 * pAppName,int nInstNum,int nInstStackSize, CBMsgEntry pfMsgCB);
+
+ACL_API int aclCreateApp__b(TAclAppParam * pTAclAppParam);
 ACL_API int aclDestroyApp(u16 nAppID);
 
 

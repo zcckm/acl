@@ -44,6 +44,28 @@ ACL_API int aclCreateApp(u16 nNewAppID,const s8 * pAppName,int nInstNum,int nIns
 }
 //manage
 
+ACL_API int aclCreateApp1(u16 nNewAppID, const s8 * pAppName, int nInstNum, int nMsgQueueNum, CBMsgEntry pfMsgCB)
+{
+	if (!(nNewAppID > 0 && nNewAppID <= MAX_APP_NUM))
+	{
+		return ACL_ERROR_PARAM;
+	}
+	TAclAppParam tAclAppParam;
+	memset(&tAclAppParam, 0, sizeof(TAclAppParam));
+	strcpy(tAclAppParam.m_achAppName, pAppName);
+	tAclAppParam.m_wAppId = nNewAppID;
+	tAclAppParam.m_byAppPrity = 80;
+	tAclAppParam.m_wAppMailBoxSize = nMsgQueueNum;
+	tAclAppParam.m_dwInstStackSize = 8 * 1024 * 1024;
+	tAclAppParam.m_dwInstNum = nInstNum;
+	tAclAppParam.m_dwInstDataLen = 256;
+	tAclAppParam.m_pMsgCB = pfMsgCB;
+	tAclAppParam.m_pExtAppData = NULL;
+
+	
+	return aclCreateApp__b(&tAclAppParam);
+}
+
 // socket
 ACL_API int aclTCPConnect(s8 * pNodeIP, u16 wPort)
 {

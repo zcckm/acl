@@ -61,6 +61,20 @@ typedef enum
     E_INST_STATE_BUSY     = 1,
 }INST_STATUS_;
 
+//用户创建app参数结构
+typedef struct tagAclAppParam
+{
+	s8 m_achAppName[MAX_APP_NAME_LEN];      //app名称
+	u16 m_wAppId;                           //app 号    
+	u8 m_byAppPrity;                        //app优先级。默认为 80
+	u16 m_wAppMailBoxSize;                  //app 邮箱最大消息数.默认值为 80
+	u32 m_dwInstStackSize;                  //app 堆栈大小.默认为64K.
+	u32 m_dwInstNum;                        //承载的实例数目
+	u32 m_dwInstDataLen;                    //每个实例自定义数据长度
+	CBMsgEntry m_pMsgCB;                    //消息入口回调函数指针
+	void * m_pExtAppData;                   //app 相关扩展数据指针
+}TAclAppParam;
+
 //socket
 typedef enum
 {

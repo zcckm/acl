@@ -48,6 +48,9 @@
     <ClInclude Include="..\..\10-common\include\acltype.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="..\include\acl_common.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\src\acl_c.cpp">

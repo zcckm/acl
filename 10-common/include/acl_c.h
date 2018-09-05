@@ -13,7 +13,7 @@
 #define _ACL_C_H_
 
 //linux 下编译需要打开此宏定义
-#define _LINUX_
+//#define _LINUX_
 
 //#include "acl_unittest.h"
 #include "acltype.h"
@@ -241,7 +241,7 @@ typedef struct tagThreadParam
 
 //thread fun define
 #ifdef WIN32
-typedef int(__stdcall * PF_THREAD_ENTRY) (void *);
+typedef unsigned int(__stdcall * PF_THREAD_ENTRY) (void *);
 #elif defined (_LINUX_)
 typedef void * (*PF_THREAD_ENTRY) (void *);
 #endif
@@ -364,6 +364,21 @@ ACL_API void aclQuit();
 //=============================================================================
 ACL_API int aclCreateApp(u16 nNewAppID,const s8 * pAppName,int nInstNum,int nInstStackSize, CBMsgEntry pfMsgCB);
 
+
+//=============================================================================
+//函 数 名：aclCreateApp
+//功	    能：创建APP
+//算法实现：
+//全局变量：
+//参	    数：nNewAppID： 创建的APPID
+//           pAppName: APP名称 可为空
+//           nInstNum: 包含Instance数量
+//     nInstStackSize: Instance 线程的堆栈大小
+//            pfMsgCB: APP的Entry函数，APP接收的消息都会通知此函数
+//注    意:APP中包含的每个Instance都有独立的处理线程，各个Instance独立处理各自消息
+//         每个Instance都有自己的状态机，可以在回调函数中修改各个Instance状态。
+//=============================================================================
+ACL_API int aclCreateApp1(u16 nNewAppID, const s8 * pAppName, int nInstNum, int nMsgQueueNum, CBMsgEntry pfMsgCB);
 
 //=============================================================================
 //函 数 名：aclDestroyApp
@@ -489,6 +504,17 @@ ACL_API int aclPost(u32 dwSrcAppInstAddr,u32 dwDstAppInstAddr,u32 dwNodeID,u16 w
 //注    意: 
 //=============================================================================
 ACL_API int aclTCPConnect(s8 * pNodeIP, u16 wPort);
+
+//=============================================================================
+//函 数 名：aclConnClose
+//功	    能：关闭客户端连接ACL服务器会话
+//算法实现：
+//全局变量：
+//参	    数：pNodeIP: 服务端IP
+//            wPort: 服务端端口
+//注    意: 
+//=============================================================================
+ACL_API int aclConnClose(int nNode);
 
 
 //=============================================================================

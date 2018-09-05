@@ -533,6 +533,70 @@ ACL_API int aclCreateApp__(u16 nNewAppID,const s8 * pAppName,int nInstNum,int nI
 }
 
 //=============================================================================
+//函 数 名：aclCreateApp__b
+//功	    能：创建APP
+//算法实现：
+//全局变量：
+//参	    数：nNewAppID： 创建的APPID
+//           pAppName: APP名称 可为空
+//           nInstNum: 包含Instance数量
+//     nInstStackSize: Instance 线程的堆栈大小
+//            pfMsgCB: APP的Entry函数，APP接收的消息都会通知此函数
+//注    意:APP中包含的每个Instance都有独立的处理线程，各个Instance独立处理各自消息
+//         每个Instance都有自己的状态机，可以在注册函数中修改
+//=============================================================================
+ACL_API int aclCreateApp__b(TAclAppParam * pTAclAppParam)
+{
+	TAclAppParam * ptAppParam = pTAclAppParam;
+	CHECK_NULL_RET_ERR_PARAM(pTAclAppParam);
+	TAclApp * ptAclApp = NULL;
+	int nErrCode = 0;
+	nErrCode = regNewAclAPP(ptAppParam->m_wAppId);
+	if (nErrCode < 0)
+	{
+		ACL_DEBUG(E_MOD_MANAGE, E_TYPE_ERROR, "[aclCreateApp]create App failed EC:%d\n", nErrCode);
+		return nErrCode;
+	}
+	ptAclApp = getAclApp(ptAppParam->m_wAppId);
+	if (ptAclApp == NULL)
+	{
+		return ACL_ERROR_CONFLICT;
+	}
+	if (ACL_ERROR_INVALID == aclCreateLock(&ptAclApp->m_hAppLock, NULL))
+	{
+		return ACL_ERROR_FAILED;
+	}
+	memset(ptAclApp->m_achAppName, 0, MAX_APP_NAME_LEN);
+
+	strncpy(ptAclApp->m_achAppName, ptAppParam->m_achAppName,
+		strlen(ptAppParam->m_achAppName) > MAX_APP_NAME_LEN - 1 ? MAX_APP_NAME_LEN - 1 : strlen(ptAppParam->m_achAppName));
+	ptAclApp->m_wAppId = ptAppParam->m_wAppId;
+	ptAclApp->m_byAppPrity = ptAppParam->m_byAppPrity;
+	ptAclApp->m_wAppMailBoxSize = ptAppParam->m_wAppMailBoxSize;
+	ptAclApp->m_dwInstStackSize = ptAppParam->m_dwInstStackSize > 0 ? ptAppParam->m_dwInstStackSize : 64 * 1024;
+	ptAclApp->m_dwInstNum = ptAppParam->m_dwInstNum;
+	ptAclApp->m_dwInstDataLen = ptAppParam->m_dwInstDataLen;
+	ptAclApp->m_pMsgCB = ptAppParam->m_pMsgCB;
+	ptAclApp->m_pExtAppData = ptAppParam->m_pExtAppData;
+
+	//create aclInstance
+	ptAclApp->m_pptInst = (TAclInstance **)aclMallocClr(ptAppParam->m_dwInstNum * sizeof(TAclInstance *));
+	memset(ptAclApp->m_pptInst, 0, ptAppParam->m_dwInstNum * sizeof(TAclInstance *));
+	{
+		u32 i = 0;
+		for (i = 0; i < ptAclApp->m_dwInstNum; i++)
+		{
+			ptAclApp->m_pptInst[i] = aclCreateInstance(ptAclApp, i + 1);
+			//insert appID which instance
+			ptAclApp->m_pptInst[i]->m_nRootAppID = ptAclApp->m_wAppId;
+
+			ptAclApp->m_dwInstCount++;
+		}
+	}
+	return ACL_ERROR_NOERROR;
+}
+
+//=============================================================================
 //函 数 名：aclDestroyApp
 //功	    能：销毁指定的APP
 //算法实现：
