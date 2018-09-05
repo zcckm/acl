@@ -205,6 +205,7 @@ ACL_API int checkPack(char * pData, int nDataLen)
 	if (ptAclMsg->m_dwPackLen != nDataLen || //pack size mismatch
 		nDataLen - sizeof(TAclMessage) != ptAclMsg->m_dwContentLen)//ext data size mismatch
 	{
+		ACL_DEBUG(E_MOD_NETWORK, E_TYPE_ERROR, "[checkPack] check packet failed, Recv DataLen:%d, ptAclMsg->m_dwPackLen = %d contentLen %d sizeofTaclMsg:%d\n", nDataLen, ptAclMsg->m_dwPackLen, ptAclMsg->m_dwContentLen, sizeof(TAclMessage));
 		return ACL_ERROR_INVALID;
 	}
 	return ACL_ERROR_NOERROR;

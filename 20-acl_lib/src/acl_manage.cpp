@@ -795,6 +795,17 @@ ACL_API int aclGetInstNum(HACLINST hAclInst)
 	return ptAclInst->m_nInstID;
 }
 
+ACL_API int aclGetInstMsgPoolLeft(HACLINST hAclInst)
+{
+	TAclInstance * ptAclInst = (TAclInstance *)hAclInst;
+	int nInstBufPoolLen = 0;
+	CHECK_NULL_RET_INVALID(ptAclInst)
+	lockLock(ptAclInst->hInstLock);
+	nInstBufPoolLen = ptAclInst->m_ptInstMsgQueue->m_nCurQueMembNum;
+	unlockLock(ptAclInst->hInstLock);
+	return nInstBufPoolLen;
+}
+
 //=============================================================================
 //函 数 名：aclCreateInstance
 //功	    能：创建Instance线程
