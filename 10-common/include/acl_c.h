@@ -239,6 +239,23 @@ typedef struct tagThreadParam
 }TTHREAD_PARAM, *PTTHREAD_PARAM;
 //task end
 
+#define PEER_CLIENT_IP_LEN      32
+
+//记录客户端连接上来的ip和端口信息
+typedef struct tagPeerClientInfo
+{
+    u32     m_nPeerClientAddr;
+    u16     m_nPeerClientPort;
+    char    m_szPeerClientAddrIp[PEER_CLIENT_IP_LEN];
+    tagPeerClientInfo()
+    {
+        m_nPeerClientAddr = 0;
+        m_nPeerClientPort = 0;
+        memset(m_szPeerClientAddrIp, 0, PEER_CLIENT_IP_LEN);
+    }
+}TPeerClientInfo;
+
+
 //thread fun define
 #ifdef WIN32
 typedef unsigned int(__stdcall * PF_THREAD_ENTRY) (void *);
@@ -742,6 +759,17 @@ int lockLock(H_ACL_LOCK  hAclLock);
 //注    意:
 //=============================================================================
 int unlockLock(H_ACL_LOCK  hAclLock);
+
+
+//=============================================================================
+//函 数 名：aclGetClientInfoBySessionId
+//功	    能：根据指定回话id获取对应客户端的ip地址（点分十进制）
+//算法实现：
+//全局变量：
+//参	    数：dwNodeID: 回话id
+//注    意:
+//=============================================================================
+ACL_API int aclGetClientInfoBySessionId(u32 dwNodeID, TPeerClientInfo& tPeerCliInfo);
 
 
 //<-----------------------Interface--------------------

@@ -20,6 +20,7 @@
 // extern "C" {
 // #endif //extern "C"
 
+typedef struct tagPeerClientInfo TPeerClientInfo;
 //++++++++begin manage Interface
 ACL_API int aclInit(BOOL bTelnet, u16 wTelPort);
 ACL_API void aclQuit();
@@ -39,6 +40,8 @@ ACL_API int aclCreateTcpNode(u16 wPort);
 ACL_API int aclInstPost__(HACLINST hInst,u32 dwDstAppInstAddr,u32 dwNodeID,u16 wMsgType,u8 * pContent,u32 dwContentLen);
 ACL_API int aclPost__(u32 dwSrcAppInstAddr,u32 dwDstAppInstAddr,u32 dwNodeID,u16 wMsgType,u8 * pContent,u32 dwContentLen);
 //--------end manage Interface
+
+ACL_API int aclGetClientInfoBySessionId(u32 dwNodeID, TPeerClientInfo& tPeerCliInfo);
 
 //begin manage
 
