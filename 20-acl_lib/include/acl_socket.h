@@ -24,6 +24,8 @@
 // extern "C" {
 // #endif //extern "C"
 
+typedef struct tagPeerClientInfo TPeerClientInfo;
+
 //+++ begin interface
 ACL_API int aclTCPConnect__(s8 * pNodeIP, u16 wPort);
 ACL_API int aclConnClose__(int nNode);
@@ -58,6 +60,9 @@ ACL_API int aclNetNode2Glb(HSockManage hSockMng, u32 dwNetNode);
 ACL_API int aclNetNode2Pos(HSockManage hSockMng, u32 dwNetNode);
 ACL_API int aclHBConfirm(HSockManage hSockMng, int nNode);
 ACL_API BOOL IsBigEndian();
+
+ACL_API int aclGetCliInfoBySpecSessionId(HSockManage hSockMng, u32 dwCheckNode, TPeerClientInfo &tPeerCliInfo);
+
 //²âÊÔ
 //->begin
 

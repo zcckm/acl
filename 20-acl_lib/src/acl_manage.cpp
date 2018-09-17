@@ -1083,7 +1083,7 @@ int aclCheckPack(char * pPackData, u16 wPackLen)
 //=============================================================================
 s32 aclNewMsgProcess(H_ACL_SOCKET nFd, ESELECT eEvent, void* pContext)
 {
-	HSockManage hSockmng = (HSockManage)pContext;
+	HSockManage hSockmng = (HSockManage)getSockDataManger();
 	char szRcvData[MAX_RECV_PACKET_SIZE] = {0};
 	TAclMessage * ptAclMsg = NULL;
 	int nRet = 0,nRcvSize = 0;
@@ -1223,7 +1223,7 @@ s32 newConn3ACheck(H_ACL_SOCKET nFd, ESELECT eEvent, void* pContext)
 
 	//nRet is Node Number as communication session ID
 	ACL_DEBUG(E_MOD_MSG,E_TYPE_DEBUG, "[newConn3ACheck] current socket 3A is pass\n");
-	nRet = aclInsertSelectLoop(g_tGlbParam.m_hSockMngData, nFd, aclNewMsgProcess, ESELECT_READ, 0, (void*)g_tGlbParam.m_hSockMngData);
+	nRet = aclInsertSelectLoop(g_tGlbParam.m_hSockMngData, nFd, aclNewMsgProcess, ESELECT_READ, 0, pContext);
 
 	if (nRet < ACL_ERROR_NOERROR)//insert failed, maybe node space is all busy
 	{
@@ -1267,12 +1267,15 @@ s32 newConnectProc(H_ACL_SOCKET nFd, ESELECT eEvent, void* pContext)
 		return ACL_ERROR_INVALID;
 	}
 	//new connect 
+    TPeerClientInfo *tpPeerCliInfo = (TPeerClientInfo*)aclMallocClr(sizeof(TPeerClientInfo));
 	hConnSock = aclTcpAccept(nFd, &dwConnIP, &wConnPort);
 	if (INVALID_SOCKET == hConnSock)//connect is failed
 	{
 		ACL_DEBUG(E_MOD_NETWORK,E_TYPE_ERROR,"[newConnectProc] tcp accept is failed\n");
 		return ACL_ERROR_FAILED;
 	}
+    tpPeerCliInfo->m_nPeerClientAddr = dwConnIP;
+    tpPeerCliInfo->m_nPeerClientPort = wConnPort;
 	if (NULL ==g_tGlbParam.m_hSockMng3A)
 	{
 		ACL_DEBUG(E_MOD_NETWORK,E_TYPE_ERROR,"[newConnectProc] handle new conn failed, 3A proc is not ready\n");
@@ -1294,7 +1297,7 @@ s32 newConnectProc(H_ACL_SOCKET nFd, ESELECT eEvent, void* pContext)
 	{
 		ACL_DEBUG(E_MOD_NETWORK,E_TYPE_ERROR,"[newConnectProc] combine packet failed EC:%d\n" ,nSendDataLen);
 	}
-	aclInsertSelectLoop(g_tGlbParam.m_hSockMng3A, hConnSock, newConn3ACheck, ESELECT_CONN, -1, pChkID);
+	aclInsertSelectLoop(g_tGlbParam.m_hSockMng3A, hConnSock, newConn3ACheck, ESELECT_CONN, -1, tpPeerCliInfo);
 	aclTcpSend(hConnSock, sz3ABuf, nSendDataLen);
 	return ACL_ERROR_NOERROR;
 }
@@ -1754,4 +1757,31 @@ ACL_API u32 aclSessionIDGenerate()
 	}
     unlockLock(g_tGlbParam.m_hAclIDLock);
     return dwID;
+}
+
+
+//根据当前会话id获取对应的客户端ip和端口信息
+ACL_API int aclGetClientInfoBySessionId(u32 dwNodeID, TPeerClientInfo& tPeerCliInfo)
+{
+    if (!dwNodeID)
+    {
+        return ACL_ERROR_PARAM;
+    }
+
+    int nRet = aclGetCliInfoBySpecSessionId(g_tGlbParam.m_hSockMngData, dwNodeID, tPeerCliInfo);
+    if (!nRet)
+    {
+        return ACL_ERROR_EMPTY;
+    }
+
+    struct sockaddr_in sClientAddr;
+#ifdef _MSC_VER
+    sClientAddr.sin_addr.S_un.S_addr = tPeerCliInfo.m_nPeerClientAddr;
+#elif defined (_LINUX_)	
+    sClientAddr.sin_addr.s_addr = tPeerCliInfo.m_nPeerClientAddr;
+#endif
+
+    strcpy(tPeerCliInfo.m_szPeerClientAddrIp, inet_ntoa(sClientAddr.sin_addr));
+
+    return ACL_ERROR_NOERROR;
 }
