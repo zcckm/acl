@@ -1164,6 +1164,22 @@ ACL_API u32 aclGlbNode2Net(HSockManage hSockMng, u32 dwCheckNode)
 }
 
 
+ACL_API int aclGetCliInfoBySpecSessionId(HSockManage hSockMng, u32 dwCheckNode, TPeerClientInfo &tPeerCliInfo)
+{
+    TSockManage * ptSockMng = (TSockManage *)hSockMng;
+    CHECK_NULL_RET_INVALID(ptSockMng);
+
+    for (int i = 0; i < ptSockMng->m_nTotalNode; i++)
+    {
+        if (dwCheckNode == ptSockMng->m_dwNodeMap[i])
+        {
+            tPeerCliInfo = *(TPeerClientInfo*)ptSockMng->m_ptSockNodeArr[i].m_pContext;
+            return 1;
+        }
+    }
+    return 0;
+}
+
 ACL_API int aclNetNode2Glb(HSockManage hSockMng, u32 dwNetNode)
 {
 	TSockManage * ptSockMng = NULL;
