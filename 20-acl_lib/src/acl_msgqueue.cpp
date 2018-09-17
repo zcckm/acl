@@ -246,6 +246,7 @@ int insertAclMsg(PTMSG_QUEUE ptAclMsgQueue,TAclMessage * ptAclMsg)
     {
         ACL_DEBUG(E_MOD_MSG, E_TYPE_ERROR, "[insertAclCustom] reg msg size[%d] and insert msg size[%d] is not matched\n",
             ptAclMsgQueue->nQueMemberRegSize,sizeof(ptAclMsg));
+		unlockLock(ptAclMsgQueue->hQueLock);
         return ACL_ERROR_CONFLICT;
     }
 
