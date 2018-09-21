@@ -328,18 +328,18 @@ ACL_API int aclConnClose__(int nNode)
 	}
 	if (!bFind)
 	{
-		lockLock(ptSockManage->m_hLock);
+		unlockLock(ptSockManage->m_hLock);
 		return ACL_ERROR_FAILED;
 	}
 
 	//找到节点了 
 	if (!ptSockManage->m_ptSockNodeArr[i].m_bIsUsed)
 	{
-		lockLock(ptSockManage->m_hLock);
+		unlockLock(ptSockManage->m_hLock);
 		return ACL_ERROR_FAILED;
 	}
 	aclRemoveSelectLoop(getSockDataManger(), ptSockManage->m_ptSockNodeArr[i].m_hSock);
-	lockLock(ptSockManage->m_hLock);
+	unlockLock(ptSockManage->m_hLock);
 	return ACL_ERROR_NOERROR;
 
 }
