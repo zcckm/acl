@@ -160,6 +160,9 @@ ACL_API int aclInit( BOOL bTelnet, u16 wTelPort )
 	int nRet = 0;
 	HSockManage hSockMng_data = NULL;
 	HSockManage hSockMng_3A = NULL;
+	#ifdef __STACK_PRINT__
+	aclCreateLock(&hLock, NULL);
+	#endif
 
 #ifdef WIN32
 	int ret;
@@ -230,6 +233,7 @@ ACL_API int aclInit( BOOL bTelnet, u16 wTelPort )
 	if (ACL_ERROR_NOERROR != nRet)
 	{
         ACL_DEBUG(E_MOD_MANAGE,E_TYPE_ERROR,"[aclInit] aclTelnetInit failed %d\n", nRet);
+		unlockLock(g_tGlbParam.m_hAclGlbLock);
 		return nRet;
 	}
 

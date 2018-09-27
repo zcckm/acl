@@ -738,7 +738,7 @@ int aclDestoryLock(H_ACL_LOCK  hAclLock);
 //参	    数：phAclSem: 互斥锁句柄，dwMaxWaitTime 上锁超时时间
 //注    意: 超时如果无法上锁，则返回
 //=============================================================================
-int lockLock_t(H_ACL_LOCK  hAclLock, u32 dwMaxWaitTime);
+int lockLock_t(H_ACL_LOCK  & hAclLock, u32 dwMaxWaitTime);
 
 //=============================================================================
 //函 数 名：lockLock
@@ -748,7 +748,7 @@ int lockLock_t(H_ACL_LOCK  hAclLock, u32 dwMaxWaitTime);
 //参	    数：phAclSem: 互斥锁句柄
 //注    意:
 //=============================================================================
-int lockLock(H_ACL_LOCK  hAclLock);
+int lockLock(H_ACL_LOCK   & hAclLock);
 
 //=============================================================================
 //函 数 名：unlockLock
@@ -758,7 +758,7 @@ int lockLock(H_ACL_LOCK  hAclLock);
 //参	    数：phAclSem: 互斥锁句柄
 //注    意:
 //=============================================================================
-int unlockLock(H_ACL_LOCK  hAclLock);
+int unlockLock(H_ACL_LOCK  & hAclLock);
 
 
 //=============================================================================

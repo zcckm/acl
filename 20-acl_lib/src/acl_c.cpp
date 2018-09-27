@@ -16,7 +16,12 @@
 #include "acl_telnet.h"
 #include "acl_socket.h"
 #include "acl_time.h"
+//#define __STACK_PRINT__
+#ifdef __STACK_PRINT__
+#include <execinfo.h>
 
+H_ACL_LOCK hLock;
+#endif
 u32 MAKEID(u16 wApp,u16 wInstance)
 {
 	return ((wApp << 16) + wInstance);
@@ -129,3 +134,30 @@ ACL_API int aclPost(u32 dwSrcAppInstAddr,u32 dwDstAppInstAddr,u32 dwNodeID,u16 w
     }
     return aclPost__(dwSrcAppInstAddr, dwDstAppInstAddr, dwNodeID, wMsgType, pContent, dwContentLen);
 }
+#ifdef __STACK_PRINT__
+void print_stacktrace(int* a, int flag)
+{
+	int size = 16;
+	void * array[16];
+	int stack_num = backtrace(array, size);
+	
+	char ** stacktrace = backtrace_symbols(array, stack_num);
+	//pthread_mutex_lock(&hLock);
+// 	if (flag != 2)
+// 	{
+// 		printf("%s value %X \n", flag ? "unlock" : "lock", a);
+// 	}
+// 	else
+// 	{
+// 		printf("%s value %X \n", "deadlock", a);
+// 	}
+
+
+	for (int i = 0; i < stack_num; ++i)
+	{
+		printf("%s\n", stacktrace[i]);
+	}
+	//pthread_mutex_unlock(&hLock);
+	free(stacktrace);
+}
+#endif

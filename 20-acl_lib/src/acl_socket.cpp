@@ -831,14 +831,14 @@ int aclSelectLoop(TSockManage * ptSockManage,u32 dwWaitMilliSec)
 	unlockLock(ptSockManage->m_hLock);
 	nReadyNum = select(sMaxSock + 1, pRead, pWrite, pError, ptv);
 	if (nReadyNum >0)
-	{	
-        lockLock(ptSockManage->m_hLock);
+	{
+        //lockLock(ptSockManage->m_hLock);
 		for (i = 0; i < nWaitSockCount; i++)
 		{
 			ptSockNode = &ptSockManage->m_ptSockNodeArr[pActiSockPos[i]];
             if (INVALID_SOCKET == ptSockNode->m_hSock)
             {
-                unlockLock(ptSockManage->m_hLock);
+                //unlockLock(ptSockManage->m_hLock);
                 continue;
             }
 			if((ESELECT_READ & ptSockNode->m_eWaitEvent) && 
@@ -876,7 +876,7 @@ int aclSelectLoop(TSockManage * ptSockManage,u32 dwWaitMilliSec)
 			}
 			ptSockNode->m_nSelectCount = 0;
 		}
-        unlockLock(ptSockManage->m_hLock);
+        //unlockLock(ptSockManage->m_hLock);
 	}
 	else
 	{
