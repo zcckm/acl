@@ -588,7 +588,7 @@ ACL_API int deletAclDLList(PTMSG_QUEUE ptMsgQueue, PTQUEUE_MEMBER ptQueMember)
     CHECK_NULL_RET_INVALID(ptQueMember)
 
     ptTmpQueMember = ptQueMember;
-    lockLock(ptMsgQueue->hQueLock);
+    //lockLock(ptMsgQueue->hQueLock);
     ptMsgQueue->m_nCurQueMembNum--;
 
     if (NULL == ptQueMember->ptPrev && NULL == ptQueMember->ptNext)//this is only left node
@@ -612,7 +612,7 @@ ACL_API int deletAclDLList(PTMSG_QUEUE ptMsgQueue, PTQUEUE_MEMBER ptQueMember)
         ptQueMember->ptNext->ptPrev = ptQueMember->ptPrev;
     }
 
-    unlockLock(ptMsgQueue->hQueLock);
+    //unlockLock(ptMsgQueue->hQueLock);
     if (NULL != ptTmpQueMember->pContent)
     {
         aclFree(ptTmpQueMember->pContent);
