@@ -24,7 +24,7 @@
 //mutex
 int aclCreateLock(H_ACL_LOCK * phAclLock, ACL_LOCK_ATTR * pAclLockAttr);
 
-int aclDestoryLock(H_ACL_LOCK  hAclLock);
+int aclDestoryLock(H_ACL_LOCK  & hAclLock);
 
 int lockLock_t(H_ACL_LOCK  & hAclLock,u32 dwMaxWaitTime);
 

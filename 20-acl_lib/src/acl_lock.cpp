@@ -35,7 +35,7 @@ int aclCreateLock(H_ACL_LOCK * phAclLock, ACL_LOCK_ATTR * pAclLockAttr)
     return ACL_ERROR_NOERROR;
 }
 
-int aclDestoryLock(H_ACL_LOCK  hAclLock)
+int aclDestoryLock(H_ACL_LOCK  & hAclLock)
 {
 #ifdef WIN32
     if (NULL == hAclLock)

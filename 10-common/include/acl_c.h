@@ -728,7 +728,7 @@ int aclCreateLock(H_ACL_LOCK * phAclLock, ACL_LOCK_ATTR * pAclLockAttr);
 //参	    数：phAclSem: 互斥锁句柄
 //注    意: 
 //=============================================================================
-int aclDestoryLock(H_ACL_LOCK  hAclLock);
+int aclDestoryLock(H_ACL_LOCK  & hAclLock);
 
 //=============================================================================
 //函 数 名：lockLock_t
