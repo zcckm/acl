@@ -27,76 +27,76 @@
 //             ---- node ------ WaitEvent
 //                          --- content 
 //                          --- RegCallBack
-typedef enum
-{
-	E_NT_INITED = 0,
-	E_NT_CLIENT,
-	E_NT_SERVER,
-	E_NT_LISTEN,
-}ENODE_TYPE;
+//typedef enum
+//{
+//    E_NT_INITED = 0,
+//    E_NT_CLIENT,
+//    E_NT_SERVER,
+//    E_NT_LISTEN,
+//}ENODE_TYPE;
 
-typedef struct
-{
-	void * pPktBufMng; //接收类型socket需要一个临时缓冲，解决黏包，半包的问题，初始size为 MAX_RECV_PACKET_SIZE*2
-	u32 dwCurePBMSize; // 标记当前pPktBufMng占用空间的大小
-}TPktBufMng;
-
-typedef struct
-{
-	H_ACL_SOCKET m_hSock;
-	void * m_pContext;
-	ESELECT m_eWaitEvent;
-	FEvSelect m_pfCB;
-	u32 m_dwNodeNum;//new socket have assign a node number may be need not
-	BOOL m_bIsUsed;
-	int m_nSelectCount;
-	int m_nHBCount;
-	ENODE_TYPE m_eNodeType; //Server Node Client Node Or
-	TPktBufMng tPktBufMng; // packet buffer manager
-}TSockNode;
-
-//for store all socket node
-//select&send operation is get socket here
-
-//NODE_MAP：为防止node冲突
-//无论客户端或者服务端，都需要进行node映射
-
-//节点映射说明
-//m_nNodeMap[X]全局ID号
-//TSockNode->m_dwNodeNum 网络ID号
-
-//当为服务端时:客户端主动连接服务端，服务端分配全局ID号
-//此时网络ID号也相同，并发给客户端作为会话ID
-
-//当为客户端时:客户端收到服务端分配的网络ID作为会话ID
-//然后本地分配本地全局ID号使用
-
-//发送消息时，需要使用全局ID号
-//程序内部会对Node进行L->N操作
-//接收消息时，程序内部会对Node进行N->L操作,然后通知给用户
-//因此包在收发的时候，都有一步
-typedef struct
-{
-	//Node 0 is for listen
-	TSockNode * m_ptSockNodeArr;
-	//nodemap: to avode node conflict
-	u32 m_dwNodeMap[MAX_NODE_SUPPORT];//保存全局节点号->与SockNode对应
-	int m_nTotalNode;
-
-	fd_set m_fdWrite;
-	fd_set m_fdRead;
-	fd_set m_fdError;
-    //集中活动的socket位置信息，便于集合处理
-	int * pActSockPos;//Activated socket position array
-
-	H_ACL_LOCK m_hLock;
-	u32 m_dwTaskState;//
-    ETASK_STATUS m_eMainTaskStatus;
-    ETASK_STATUS m_eHBTaskStatus;
-	TACL_THREAD m_tSelectThread;
-	TACL_THREAD m_tHBThread;//heart beat thread
-	int m_nHBCount; //heart beat count
-}TSockManage;
+//typedef struct
+//{
+//	void * pPktBufMng; //接收类型socket需要一个临时缓冲，解决黏包，半包的问题，初始size为 MAX_RECV_PACKET_SIZE*2
+//	u32 dwCurePBMSize; // 标记当前pPktBufMng占用空间的大小
+//}TPktBufMng;
+//
+//typedef struct
+//{
+//	H_ACL_SOCKET m_hSock;
+//	void * m_pContext;
+//	ESELECT m_eWaitEvent;
+//	FEvSelect m_pfCB;
+//	u32 m_dwNodeNum;//new socket have assign a node number may be need not
+//	BOOL m_bIsUsed;
+//	int m_nSelectCount;
+//	int m_nHBCount;
+//	ENODE_TYPE m_eNodeType; //Server Node Client Node Or
+//	TPktBufMng tPktBufMng; // packet buffer manager
+//}TSockNode;
+//
+////for store all socket node
+////select&send operation is get socket here
+//
+////NODE_MAP：为防止node冲突
+////无论客户端或者服务端，都需要进行node映射
+//
+////节点映射说明
+////m_nNodeMap[X]全局ID号
+////TSockNode->m_dwNodeNum 网络ID号
+//
+////当为服务端时:客户端主动连接服务端，服务端分配全局ID号
+////此时网络ID号也相同，并发给客户端作为会话ID
+//
+////当为客户端时:客户端收到服务端分配的网络ID作为会话ID
+////然后本地分配本地全局ID号使用
+//
+////发送消息时，需要使用全局ID号
+////程序内部会对Node进行L->N操作
+////接收消息时，程序内部会对Node进行N->L操作,然后通知给用户
+////因此包在收发的时候，都有一步
+//typedef struct tagSockManage
+//{
+//	//Node 0 is for listen
+//	TSockNode * m_ptSockNodeArr;
+//	//nodemap: to avode node conflict
+//	u32 m_dwNodeMap[MAX_NODE_SUPPORT];//保存全局节点号->与SockNode对应
+//	int m_nTotalNode;
+//
+//	fd_set m_fdWrite;
+//	fd_set m_fdRead;
+//	fd_set m_fdError;
+//    //集中活动的socket位置信息，便于集合处理
+//	int * pActSockPos;//Activated socket position array
+//
+//	H_ACL_LOCK m_hLock;
+//	u32 m_dwTaskState;//
+//    ETASK_STATUS m_eMainTaskStatus;
+//    ETASK_STATUS m_eHBTaskStatus;
+//	TACL_THREAD m_tSelectThread;
+//	TACL_THREAD m_tHBThread;//heart beat thread
+//	int m_nHBCount; //heart beat count
+//}TSockManage;
 
 //3A
 #define SELECT_3A_INTERVAL 100
@@ -328,18 +328,18 @@ ACL_API int aclConnClose__(int nNode)
 	}
 	if (!bFind)
 	{
-		lockLock(ptSockManage->m_hLock);
+		unlockLock(ptSockManage->m_hLock);
 		return ACL_ERROR_FAILED;
 	}
 
 	//找到节点了 
 	if (!ptSockManage->m_ptSockNodeArr[i].m_bIsUsed)
 	{
-		lockLock(ptSockManage->m_hLock);
+		unlockLock(ptSockManage->m_hLock);
 		return ACL_ERROR_FAILED;
 	}
 	aclRemoveSelectLoop(getSockDataManger(), ptSockManage->m_ptSockNodeArr[i].m_hSock);
-	lockLock(ptSockManage->m_hLock);
+	unlockLock(ptSockManage->m_hLock);
 	return ACL_ERROR_NOERROR;
 
 }
@@ -831,14 +831,14 @@ int aclSelectLoop(TSockManage * ptSockManage,u32 dwWaitMilliSec)
 	unlockLock(ptSockManage->m_hLock);
 	nReadyNum = select(sMaxSock + 1, pRead, pWrite, pError, ptv);
 	if (nReadyNum >0)
-	{	
-        lockLock(ptSockManage->m_hLock);
+	{
+        //lockLock(ptSockManage->m_hLock);
 		for (i = 0; i < nWaitSockCount; i++)
 		{
 			ptSockNode = &ptSockManage->m_ptSockNodeArr[pActiSockPos[i]];
             if (INVALID_SOCKET == ptSockNode->m_hSock)
             {
-                unlockLock(ptSockManage->m_hLock);
+                //unlockLock(ptSockManage->m_hLock);
                 continue;
             }
 			if((ESELECT_READ & ptSockNode->m_eWaitEvent) && 
@@ -876,7 +876,7 @@ int aclSelectLoop(TSockManage * ptSockManage,u32 dwWaitMilliSec)
 			}
 			ptSockNode->m_nSelectCount = 0;
 		}
-        unlockLock(ptSockManage->m_hLock);
+        //unlockLock(ptSockManage->m_hLock);
 	}
 	else
 	{
@@ -1071,7 +1071,7 @@ ACL_API int aclRemoveSelectLoop(HSockManage hSockMng, H_ACL_SOCKET hSock)
 	{
 		return ACL_ERROR_INVALID;
 	}
-	lockLock(ptSockManage->m_hLock);
+	//lockLock(ptSockManage->m_hLock);
 	ptNewNode = ptSockManage->m_ptSockNodeArr;
 	for (i = 0; i < ptSockManage->m_nTotalNode; i++)
 	{
@@ -1088,7 +1088,7 @@ ACL_API int aclRemoveSelectLoop(HSockManage hSockMng, H_ACL_SOCKET hSock)
 			break;
 		}
 	}
-	unlockLock(ptSockManage->m_hLock);
+	//unlockLock(ptSockManage->m_hLock);
 	return nFindNode;
 }
 

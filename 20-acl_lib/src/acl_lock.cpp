@@ -35,7 +35,7 @@ int aclCreateLock(H_ACL_LOCK * phAclLock, ACL_LOCK_ATTR * pAclLockAttr)
     return ACL_ERROR_NOERROR;
 }
 
-int aclDestoryLock(H_ACL_LOCK  hAclLock)
+int aclDestoryLock(H_ACL_LOCK  & hAclLock)
 {
 #ifdef WIN32
     if (NULL == hAclLock)
@@ -60,7 +60,7 @@ int aclDestoryLock(H_ACL_LOCK  hAclLock)
 //         linux互斥锁没有等待机制，当前简单利用
 //注    意:
 //=============================================================================
-int lockLock_t(H_ACL_LOCK  hAclLock,u32 dwMaxWaitTime)
+int lockLock_t(H_ACL_LOCK  & hAclLock,u32 dwMaxWaitTime)
 {    
 #ifdef WIN32
     if (NULL == hAclLock)
@@ -71,14 +71,14 @@ int lockLock_t(H_ACL_LOCK  hAclLock,u32 dwMaxWaitTime)
 #elif defined (_LINUX_)
     if(ACL_ERROR_NOERROR != pthread_mutex_trylock(&hAclLock))
     {
-        usleep(dwMaxWaitTime);
+        usleep(dwMaxWaitTime*1000);
         return pthread_mutex_trylock(&hAclLock);
     }
     return ACL_ERROR_NOERROR;
 #endif
 }
 
-int lockLock(H_ACL_LOCK  hAclLock)
+int lockLock(H_ACL_LOCK   & hAclLock)
 {
 #ifdef WIN32
     if (NULL == hAclLock)
@@ -101,8 +101,8 @@ int lockLock(H_ACL_LOCK  hAclLock)
 	return ACL_ERROR_NOERROR;
 }
 
-int unlockLock(H_ACL_LOCK  hAclLock)
-{    
+int unlockLock(H_ACL_LOCK  & hAclLock)
+{
 #ifdef WIN32
     if (NULL == hAclLock)
     {

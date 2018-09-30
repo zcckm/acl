@@ -160,6 +160,9 @@ ACL_API int aclInit( BOOL bTelnet, u16 wTelPort )
 	int nRet = 0;
 	HSockManage hSockMng_data = NULL;
 	HSockManage hSockMng_3A = NULL;
+	#ifdef __STACK_PRINT__
+	aclCreateLock(&hLock, NULL);
+	#endif
 
 #ifdef WIN32
 	int ret;
@@ -230,6 +233,7 @@ ACL_API int aclInit( BOOL bTelnet, u16 wTelPort )
 	if (ACL_ERROR_NOERROR != nRet)
 	{
         ACL_DEBUG(E_MOD_MANAGE,E_TYPE_ERROR,"[aclInit] aclTelnetInit failed %d\n", nRet);
+		unlockLock(g_tGlbParam.m_hAclGlbLock);
 		return nRet;
 	}
 
@@ -1102,7 +1106,10 @@ s32 aclNewMsgProcess(H_ACL_SOCKET nFd, ESELECT eEvent, void* pContext)
 #ifdef WIN32
 		ACL_DEBUG(E_MOD_MSG,E_TYPE_WARNNING,"[aclNewMsgProcess] connection was forcibly closed by the remote host err id %d\n", WSAGetLastError());
 #endif
+        TSockManage * ptSockManage = (TSockManage *)getSockDataManger();
+        lockLock(ptSockManage->m_hLock);
 		aclRemoveSelectLoop(hSockmng, nFd);
+        unlockLock(ptSockManage->m_hLock);
 		return ACL_ERROR_NOERROR;
 	}
 	ACL_DEBUG(E_MOD_MSG,E_TYPE_DEBUG,"[aclNewMsgProcess] nRcvSize:%d\n",nRcvSize);
@@ -1133,7 +1140,10 @@ s32 aclNewMsgProcess(H_ACL_SOCKET nFd, ESELECT eEvent, void* pContext)
 		case WSAECONNRESET:  
 			{
 				ACL_DEBUG(E_MOD_MSG,E_TYPE_WARNNING,"[aclNewMsgProcess] connection was forcibly closed by the remote host err id %d\n", id);
-				aclRemoveSelectLoop(hSockmng, nFd);
+                TSockManage * ptSockManage = (TSockManage *)getSockDataManger();
+                lockLock(ptSockManage->m_hLock);
+                aclRemoveSelectLoop(hSockmng, nFd);
+                unlockLock(ptSockManage->m_hLock);
 				return ACL_ERROR_NOERROR;
 			}
 			break;

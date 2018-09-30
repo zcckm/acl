@@ -10,9 +10,9 @@
 //2018-07-20 zhoucc 创建
 //******************************************************************************
 #include "version.h"
-#define VER_MAIN 0 //发布版本
-#define VER_SUB1 5 //功能添加修改，优化
-#define VER_SUB2 6 //Bug修正
+#define VER_MAIN 0  //发布版本
+#define VER_SUB1 5  //功能添加修改，优化
+#define VER_SUB2 12 //Bug修正
 
 
 #define STR(s)     #s

@@ -246,6 +246,7 @@ int insertAclMsg(PTMSG_QUEUE ptAclMsgQueue,TAclMessage * ptAclMsg)
     {
         ACL_DEBUG(E_MOD_MSG, E_TYPE_ERROR, "[insertAclCustom] reg msg size[%d] and insert msg size[%d] is not matched\n",
             ptAclMsgQueue->nQueMemberRegSize,sizeof(ptAclMsg));
+		unlockLock(ptAclMsgQueue->hQueLock);
         return ACL_ERROR_CONFLICT;
     }
 
@@ -326,6 +327,7 @@ int insertAclCustom(PTMSG_QUEUE ptAclMsgQueue,void * ptAclMsg, int nMsgLen)
     {
         ACL_DEBUG(E_MOD_MSG, E_TYPE_ERROR, "[insertAclCustom] reg msg size[%d] and insert msg size[%d] is not matched\n",
             ptAclMsgQueue->nQueMemberRegSize,nMsgLen);
+		unlockLock(ptAclMsgQueue->hQueLock);
         return ACL_ERROR_CONFLICT;
     }
     switch(ptAclMsgQueue->eHandleMode)
@@ -535,6 +537,7 @@ ACL_API PTQUEUE_MEMBER insertAclDLList(PTMSG_QUEUE ptMsgQueue, void * pContent, 
     
     if (ptMsgQueue->m_nCurQueMembNum >= ptMsgQueue->nSetMaxQueueNum)// have reached limit memb num
     {
+		unlockLock(ptMsgQueue->hQueLock);
         return NULL;
     }
     if(NULL == ptMsgQueue->LACP)// means list have no node
@@ -585,7 +588,7 @@ ACL_API int deletAclDLList(PTMSG_QUEUE ptMsgQueue, PTQUEUE_MEMBER ptQueMember)
     CHECK_NULL_RET_INVALID(ptQueMember)
 
     ptTmpQueMember = ptQueMember;
-    lockLock(ptMsgQueue->hQueLock);
+    //lockLock(ptMsgQueue->hQueLock);
     ptMsgQueue->m_nCurQueMembNum--;
 
     if (NULL == ptQueMember->ptPrev && NULL == ptQueMember->ptNext)//this is only left node
@@ -609,7 +612,7 @@ ACL_API int deletAclDLList(PTMSG_QUEUE ptMsgQueue, PTQUEUE_MEMBER ptQueMember)
         ptQueMember->ptNext->ptPrev = ptQueMember->ptPrev;
     }
 
-    unlockLock(ptMsgQueue->hQueLock);
+    //unlockLock(ptMsgQueue->hQueLock);
     if (NULL != ptTmpQueMember->pContent)
     {
         aclFree(ptTmpQueMember->pContent);
