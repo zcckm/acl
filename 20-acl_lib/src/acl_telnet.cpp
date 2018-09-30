@@ -755,7 +755,10 @@ s32 newTelMsgProcess(H_ACL_SOCKET nFd, ESELECT eEvent, void* pContext)
 	if (0 == nRcvSize)//attempt to disconnect current connect
 	{
         ACL_DEBUG(E_MOD_TELNET, E_TYPE_WARNNING, "[newTelMsgProcess] telnet is disconnected\n");
+        TSockManage * ptSockManage = (TSockManage *)getSockDataManger();
+        lockLock(ptSockManage->m_hLock);
 		aclRemoveSelectLoop(getSockDataManger(), nFd);
+        unlockLock(ptSockManage->m_hLock);
 		telResetParam((HAclTel)ptAclTel);
 		return ACL_ERROR_NOERROR;
 	}
@@ -801,7 +804,10 @@ s32 newTelMsgProcess(H_ACL_SOCKET nFd, ESELECT eEvent, void* pContext)
 		if (0 == strcmp(ptAclTel->m_szCmd, "bye"))
 		{
             ACL_DEBUG(E_MOD_TELNET, E_TYPE_DEBUG, "[newTelMsgProcess] recv CMD:bye SOCK:%X\n",nFd);
+            TSockManage * ptSockManage = (TSockManage *)getSockDataManger();
+            lockLock(ptSockManage->m_hLock);
 			aclRemoveSelectLoop(getSockDataManger() ,nFd);
+            unlockLock(ptSockManage->m_hLock);
 			telResetParam((HAclTel)ptAclTel);
 			return 0;
 		}
