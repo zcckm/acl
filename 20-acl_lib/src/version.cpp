@@ -14,7 +14,6 @@
 #define VER_SUB1 5  //功能添加修改，优化
 #define VER_SUB2 11 //Bug修正
 
-
 #define STR(s)     #s
 #define VERSION(a,b,c)  "ACL V:" STR(a) "." STR(b) "." STR(c) " " __DATE__
 //#define VERSTR  "ACL V: V2.0.1.2017.01.01"
