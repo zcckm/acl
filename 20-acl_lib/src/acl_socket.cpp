@@ -338,7 +338,7 @@ ACL_API int aclConnClose__(int nNode)
 		unlockLock(ptSockManage->m_hLock);
 		return ACL_ERROR_FAILED;
 	}
-	aclRemoveSelectLoop(getSockDataManger(), ptSockManage->m_ptSockNodeArr[i].m_hSock);
+    aclRemoveSelectLoopUnsafe(getSockDataManger(), ptSockManage->m_ptSockNodeArr[i].m_hSock);
 	unlockLock(ptSockManage->m_hLock);
 	return ACL_ERROR_NOERROR;
 
@@ -1085,11 +1085,44 @@ ACL_API int aclRemoveSelectLoop(HSockManage hSockMng, H_ACL_SOCKET hSock)
 			}
 			aclResetSockNode(hSockMng, i);
 			nFindNode = i;
+            ptNewNode->m_bIsUsed = FALSE;
 			break;
 		}
 	}
 	unlockLock(ptSockManage->m_hLock);
 	return nFindNode;
+}
+
+ACL_API int aclRemoveSelectLoopUnsafe(HSockManage hSockMng, H_ACL_SOCKET hSock)
+{
+    int i;
+    TSockManage * ptSockManage = NULL;
+    TSockNode * ptNewNode = NULL;
+    int nFindNode = -1;
+    ptSockManage = (TSockManage *)hSockMng;
+    CHECK_NULL_RET_INVALID(ptSockManage);
+    if (INVALID_SOCKET == hSock)
+    {
+        return ACL_ERROR_INVALID;
+    }
+    ptNewNode = ptSockManage->m_ptSockNodeArr;
+    for (i = 0; i < ptSockManage->m_nTotalNode; i++)
+    {
+        ptNewNode = &ptSockManage->m_ptSockNodeArr[i];
+        if (hSock == ptNewNode->m_hSock)//find out this socket
+        {
+            if (ptNewNode->tPktBufMng.pPktBufMng)
+            {
+                aclFree(ptNewNode->tPktBufMng.pPktBufMng);
+                ptNewNode->tPktBufMng.pPktBufMng = NULL;
+            }
+            aclResetSockNode(hSockMng, i);
+            nFindNode = i;
+            ptNewNode->m_bIsUsed = FALSE;
+            break;
+        }
+    }
+    return nFindNode;
 }
 
 //heart beat confirmed
