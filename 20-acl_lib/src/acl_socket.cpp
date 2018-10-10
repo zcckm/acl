@@ -338,7 +338,7 @@ ACL_API int aclConnClose__(int nNode)
 		unlockLock(ptSockManage->m_hLock);
 		return ACL_ERROR_FAILED;
 	}
-	aclRemoveSelectLoop(getSockDataManger(), ptSockManage->m_ptSockNodeArr[i].m_hSock);
+    aclRemoveSelectLoopUnsafe(getSockDataManger(), ptSockManage->m_ptSockNodeArr[i].m_hSock);
 	unlockLock(ptSockManage->m_hLock);
 	return ACL_ERROR_NOERROR;
 
@@ -832,7 +832,7 @@ int aclSelectLoop(TSockManage * ptSockManage,u32 dwWaitMilliSec)
 	nReadyNum = select(sMaxSock + 1, pRead, pWrite, pError, ptv);
 	if (nReadyNum >0)
 	{
-        //lockLock(ptSockManage->m_hLock);
+        lockLock(ptSockManage->m_hLock);
 		for (i = 0; i < nWaitSockCount; i++)
 		{
 			ptSockNode = &ptSockManage->m_ptSockNodeArr[pActiSockPos[i]];
@@ -876,7 +876,7 @@ int aclSelectLoop(TSockManage * ptSockManage,u32 dwWaitMilliSec)
 			}
 			ptSockNode->m_nSelectCount = 0;
 		}
-        //unlockLock(ptSockManage->m_hLock);
+        unlockLock(ptSockManage->m_hLock);
 	}
 	else
 	{
@@ -1056,6 +1056,84 @@ ACL_API int aclInsertSelectLoop(HSockManage hSockMng, H_ACL_SOCKET hSock, FEvSel
 	return dwGlbID;// return GLBID
 }
 
+ACL_API int aclInsertSelectLoopUnsafe(HSockManage hSockMng, H_ACL_SOCKET hSock, FEvSelect pfCB, ESELECT eSelType, int nInnerNodeID, void * pContext)
+{
+    int i;
+    TSockManage * ptSockManage = NULL;
+    TSockNode * ptNewNode = NULL;
+    int nFindNode = -1;
+    u32 dwGlbID = 0;
+    ptSockManage = (TSockManage *)hSockMng;
+    CHECK_NULL_RET_INVALID(ptSockManage)
+
+    ptNewNode = ptSockManage->m_ptSockNodeArr;
+    for (i = 0; i < ptSockManage->m_nTotalNode; i++)
+    {
+        //这里每次自加貌似没错，其实造成累加
+        //		ptNewNode = ptNewNode + i;//NB BUG 
+        ptNewNode = &ptSockManage->m_ptSockNodeArr[i];
+        if (!ptNewNode->m_bIsUsed)//find a node whitch have not used yet
+        {
+            ACL_DEBUG(E_MOD_NETWORK, E_TYPE_DEBUG, "[aclInsertSelectLoopUnsafe] [%d] has not used SEL TYPE:%d\n", i, eSelType);
+            ptNewNode->m_eWaitEvent = eSelType;
+            if (ESELECT_READ == eSelType)
+            {
+                //只有纯recv类型的socekt才需要包缓冲管理器，用于管理黏包，半包
+                if (ptNewNode->tPktBufMng.pPktBufMng)
+                {
+                    aclFree(ptNewNode->tPktBufMng.pPktBufMng);
+                }
+                ptNewNode->tPktBufMng.pPktBufMng = aclMallocClr(INIT_PACKET_BUFFER_MANAGER);
+            }
+
+            if (ESELECT_CONN & eSelType)
+            {
+                ptNewNode->m_eWaitEvent = (ESELECT)(ESELECT_READ | ESELECT_CONN);
+            }
+            ptNewNode->m_dwNodeNum = nInnerNodeID;// Node start at 1
+            ptNewNode->m_pfCB = pfCB;//cb to handle new connect
+            ptNewNode->m_hSock = hSock;
+            ptNewNode->m_pContext = pContext;
+            ptNewNode->m_bIsUsed = TRUE;
+            nFindNode = i;
+            break;
+        }
+    }
+    if (-1 == nFindNode)// have not find new node
+    {
+        ACL_DEBUG(E_MOD_NETWORK, E_TYPE_WARNNING, "[aclInsertSelectLoopUnsafe] have not find new node to insert\n");
+        return ACL_ERROR_OVERFLOW;
+    }
+
+    if (0 == nInnerNodeID)//means it is a server insert
+    {
+        dwGlbID = aclSessionIDGenerate();
+        ptNewNode->m_dwNodeNum = dwGlbID;
+        ptNewNode->m_eNodeType = E_NT_SERVER;
+        ACL_DEBUG(E_MOD_NETWORK, E_TYPE_DEBUG, "[aclInsertSelectLoopUnsafe] aclInsertSelectLoopUnsafe insert server\n");
+    }
+    else if (-1 == nInnerNodeID)//means it is a listen Node
+    {
+        //local listen ID, not important no glbID alloc
+        ptNewNode->m_dwNodeNum = dwGlbID;
+        ptNewNode->m_eNodeType = E_NT_LISTEN;
+        ACL_DEBUG(E_MOD_NETWORK, E_TYPE_DEBUG, "[aclInsertSelectLoopUnsafe] aclInsertSelectLoopUnsafe local listen\n");
+    }
+    else
+    {
+        dwGlbID = aclSessionIDGenerate();
+        ptNewNode->m_eNodeType = E_NT_CLIENT;
+        ACL_DEBUG(E_MOD_NETWORK, E_TYPE_DEBUG, "[aclInsertSelectLoopUnsafe] aclInsertSelectLoopUnsafe insert client\n");
+    }
+    ptSockManage->m_dwNodeMap[nFindNode] = dwGlbID;
+
+    ACL_DEBUG(E_MOD_NETWORK, E_TYPE_DEBUG, "[aclInsertSelectLoopUnsafe] insert a NETWORK Node ID %d and GlbID %d\n", nInnerNodeID, dwGlbID);
+
+    return dwGlbID;// return GLBID
+}
+
+
+
 //删除指定的socket
 //HSockManage hSockMng     节点管理句柄
 //H_ACL_SOCKET hSock       需要删除的Socket
@@ -1085,11 +1163,44 @@ ACL_API int aclRemoveSelectLoop(HSockManage hSockMng, H_ACL_SOCKET hSock)
 			}
 			aclResetSockNode(hSockMng, i);
 			nFindNode = i;
+            ptNewNode->m_bIsUsed = FALSE;
 			break;
 		}
 	}
 	unlockLock(ptSockManage->m_hLock);
 	return nFindNode;
+}
+
+ACL_API int aclRemoveSelectLoopUnsafe(HSockManage hSockMng, H_ACL_SOCKET hSock)
+{
+    int i;
+    TSockManage * ptSockManage = NULL;
+    TSockNode * ptNewNode = NULL;
+    int nFindNode = -1;
+    ptSockManage = (TSockManage *)hSockMng;
+    CHECK_NULL_RET_INVALID(ptSockManage);
+    if (INVALID_SOCKET == hSock)
+    {
+        return ACL_ERROR_INVALID;
+    }
+    ptNewNode = ptSockManage->m_ptSockNodeArr;
+    for (i = 0; i < ptSockManage->m_nTotalNode; i++)
+    {
+        ptNewNode = &ptSockManage->m_ptSockNodeArr[i];
+        if (hSock == ptNewNode->m_hSock)//find out this socket
+        {
+            if (ptNewNode->tPktBufMng.pPktBufMng)
+            {
+                aclFree(ptNewNode->tPktBufMng.pPktBufMng);
+                ptNewNode->tPktBufMng.pPktBufMng = NULL;
+            }
+            aclResetSockNode(hSockMng, i);
+            nFindNode = i;
+            ptNewNode->m_bIsUsed = FALSE;
+            break;
+        }
+    }
+    return nFindNode;
 }
 
 //heart beat confirmed
