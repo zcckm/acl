@@ -36,7 +36,9 @@ int  inet_aton(const char *cp, struct in_addr *ap);
 ACL_API HSockManage aclSocketManageInit(ESOCKET_MANAGE eManageType);
 ACL_API void aclSocketManageUninit(HSockManage hSockManage, ESOCKET_MANAGE eManageType);
 ACL_API int aclInsertSelectLoop(HSockManage hSockMng, H_ACL_SOCKET hSock, FEvSelect pfCB, ESELECT eSelType, int nInnerNodeID, void * pContext);
+ACL_API int aclInsertSelectLoopUnsafe(HSockManage hSockMng, H_ACL_SOCKET hSock, FEvSelect pfCB, ESELECT eSelType, int nInnerNodeID, void * pContext);
 ACL_API int aclRemoveSelectLoop(HSockManage hSockMng, H_ACL_SOCKET hSock);
+ACL_API int aclRemoveSelectLoopUnsafe(HSockManage hSockMng, H_ACL_SOCKET hSock);        //liuqj 2018.10.08 对于hSockMng，函数内部读取时不加锁
 ACL_API int aclInsertPBMAndSend(HSockManage hSockMng, H_ACL_SOCKET hSock,void * data, int nDataLen);
 
 ACL_API H_ACL_SOCKET aclCreateSocket();

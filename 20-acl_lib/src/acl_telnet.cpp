@@ -755,7 +755,7 @@ s32 newTelMsgProcess(H_ACL_SOCKET nFd, ESELECT eEvent, void* pContext)
 	if (0 == nRcvSize)//attempt to disconnect current connect
 	{
         ACL_DEBUG(E_MOD_TELNET, E_TYPE_WARNNING, "[newTelMsgProcess] telnet is disconnected\n");
-		aclRemoveSelectLoop(getSockDataManger(), nFd);
+		aclRemoveSelectLoopUnsafe(getSockDataManger(), nFd);
 		telResetParam((HAclTel)ptAclTel);
 		return ACL_ERROR_NOERROR;
 	}
@@ -801,7 +801,7 @@ s32 newTelMsgProcess(H_ACL_SOCKET nFd, ESELECT eEvent, void* pContext)
 		if (0 == strcmp(ptAclTel->m_szCmd, "bye"))
 		{
             ACL_DEBUG(E_MOD_TELNET, E_TYPE_DEBUG, "[newTelMsgProcess] recv CMD:bye SOCK:%X\n",nFd);
-			aclRemoveSelectLoop(getSockDataManger() ,nFd);
+            aclRemoveSelectLoopUnsafe(getSockDataManger() ,nFd);
 			telResetParam((HAclTel)ptAclTel);
 			return 0;
 		}
@@ -915,7 +915,7 @@ s32 newTelConnProc(H_ACL_SOCKET nFd, ESELECT eEvent, void* pContext)
 	aclECHO(hConnSock, "***==============  »¶Ó­Ê¹ÓÃACL Telnet Server  ================***\r\n");
 	aclECHO(hConnSock, "*===============================================================*\r\n");
 	aclECHO(hConnSock, ptAclTel->m_szPrompt);
-	aclInsertSelectLoop(getSockDataManger(), hConnSock, newTelMsgProcess, ESELECT_READ, -1, pContext);
+    aclInsertSelectLoopUnsafe(getSockDataManger(), hConnSock, newTelMsgProcess, ESELECT_READ, -1, pContext);
 	//	getTelnetPrompt(wConnPort);
 	ACL_DEBUG(E_MOD_TELNET, E_TYPE_DEBUG, "[newTelConnProc]  new telnet connected and Port %d\n",wConnPort);
 	aclTcpSend(hConnSock, szMarkBuf, nSendDataLen);
