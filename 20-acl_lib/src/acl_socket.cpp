@@ -1624,13 +1624,13 @@ ACL_API int aclInsertPBMAndSend(HSockManage hSockMng, H_ACL_SOCKET hSock,void * 
 	{
 		return ACL_ERROR_INVALID;
 	}
-	lockLock(ptSockManage->m_hLock);
+	//lockLock(ptSockManage->m_hLock);
 	nRet = aclFindSocketNode(hSockMng, hSock, &ptNewNode);
 	if(ACL_ERROR_NOERROR != nRet || NULL == ptNewNode)
 	{
 		//寻找SocketNode出现错误
 		ACL_DEBUG(E_MOD_MSG, E_TYPE_ERROR, "[aclInsertPBMAndSend] cannot find target socket node SOCK[%d]\n",hSock);
-		unlockLock(ptSockManage->m_hLock);
+		//unlockLock(ptSockManage->m_hLock);
 		return ACL_ERROR_FAILED;
 	}
 
@@ -1644,7 +1644,7 @@ ACL_API int aclInsertPBMAndSend(HSockManage hSockMng, H_ACL_SOCKET hSock,void * 
 		{
 			//分配内存失败
 			ACL_DEBUG(E_MOD_MSG, E_TYPE_ERROR, "[aclInsertPktBufMng] alloc large memory<%d Byte> error\n", nDataLen + ptNewNode->tPktBufMng.dwCurePBMSize);
-			unlockLock(ptSockManage->m_hLock);
+			//unlockLock(ptSockManage->m_hLock);
 			return ACL_ERROR_MALLOC;
 		}
 		//数据迁移
@@ -1691,6 +1691,6 @@ ACL_API int aclInsertPBMAndSend(HSockManage hSockMng, H_ACL_SOCKET hSock,void * 
 		nRet = aclCheckPktBufMngContent(&ptNewNode->tPktBufMng, &nCheckSize);
 	}
 
-	unlockLock(ptSockManage->m_hLock);
+	//unlockLock(ptSockManage->m_hLock);
 	return ACL_ERROR_NOERROR;
 }
