@@ -724,6 +724,14 @@ ACL_API int aclResetSockNode(HSockManage hSockManage, int nPos)
 
 	if (INVALID_SOCKET != ptSockNode->m_hSock)
 	{
+		if (ptSockNode->m_dwNodeNum > 0)
+		{
+			//只有Node大于0的节点才会是Client或者Server
+			//对于心跳超时，ACL会向注册APPID=1的APP发送心跳
+			TDisconnNtf tDisconnNtf;
+			tDisconnNtf.m_nSessionID = aclNetNode2Glb(hSockManage, ptSockNode->m_dwNodeNum);
+			aclMsgPush(MAKEID(1, 0), MAKEID(1, 0), 0, MSG_DISCONNECT_NTF, (u8 *)&tDisconnNtf, sizeof(tDisconnNtf), E_PMT_L_L);
+		}
 #ifdef WIN32
         closesocket(ptSockNode->m_hSock);
 #elif defined (_LINUX_)

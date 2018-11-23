@@ -21,6 +21,7 @@ typedef enum
     MSG_HBMSG_REQ     = 3,//HB req
     MSG_HB_MSG,
     MSG_HB_MSG_ACK,
+	MSG_DISCONNECT_NTF,
 }E_INNERMSG;
 
 typedef enum

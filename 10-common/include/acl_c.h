@@ -214,6 +214,20 @@ typedef enum
 
 #endif
 
+//Disconnect Param...... start
+enum enumSysMsgForNtf
+{
+	E_SYS_NTF_DISCONNECT = 6,//TDisconnNtf
+};
+
+
+typedef struct tagDisconnNtf
+{
+	int m_nSessionID;
+}TDisconnNtf;
+
+//Disconnect Param......end
+
 
 //task start ....
 typedef enum
