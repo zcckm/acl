@@ -227,7 +227,7 @@ int parse_param(char *buf, char **argv, int * argvType)
 		buf++;
 	}
 	//filter func name
-	if ('\0' != buf)
+	if ('\0' != *buf)
 	{
 		argv[argc] = buf;
 		argc++;
