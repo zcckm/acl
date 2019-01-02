@@ -14,6 +14,7 @@
 
 #include "acltype.h"
 #include "acl_common.h"
+#include <map>
 #define MAX_SEND_PACKET_SIZE 800*1024
 #define MAX_RECV_PACKET_SIZE 800*1024
 #define INIT_PACKET_BUFFER_MANAGER (MAX_RECV_PACKET_SIZE * 2)
@@ -23,6 +24,27 @@
 // #ifdef __cplusplus
 // extern "C" {
 // #endif //extern "C"
+
+typedef enum
+{
+	E_NT_INITED = 0,
+	E_NT_CLIENT,
+	E_NT_SERVER,
+	E_NT_LISTEN,
+}ENODE_TYPE;
+
+static std::map<u16, std::string> mapNodeTypePrint =
+{
+	{ E_NT_INITED, "E_NT_INITED" },
+	{ E_NT_CLIENT, "E_NT_CLIENT" },
+	{ E_NT_SERVER, "E_NT_SERVER" },
+	{ E_NT_LISTEN, "E_NT_LISTEN" }
+};
+typedef struct tagNodeInfo
+{
+	ENODE_TYPE m_eNodeType;
+	u32 m_dwNodeSSID;
+}TNodeInfo;
 
 typedef struct tagPeerClientInfo TPeerClientInfo;
 
@@ -35,10 +57,9 @@ int  inet_aton(const char *cp, struct in_addr *ap);
 
 ACL_API HSockManage aclSocketManageInit(ESOCKET_MANAGE eManageType);
 ACL_API void aclSocketManageUninit(HSockManage hSockManage, ESOCKET_MANAGE eManageType);
-ACL_API int aclInsertSelectLoop(HSockManage hSockMng, H_ACL_SOCKET hSock, FEvSelect pfCB, ESELECT eSelType, int nInnerNodeID, void * pContext);
-ACL_API int aclInsertSelectLoopUnsafe(HSockManage hSockMng, H_ACL_SOCKET hSock, FEvSelect pfCB, ESELECT eSelType, int nInnerNodeID, void * pContext);
-ACL_API int aclRemoveSelectLoop(HSockManage hSockMng, H_ACL_SOCKET hSock);
-ACL_API int aclRemoveSelectLoopUnsafe(HSockManage hSockMng, H_ACL_SOCKET hSock);        //liuqj 2018.10.08 对于hSockMng，函数内部读取时不加锁
+ACL_API int aclInsertSelectLoop(HSockManage hSockMng, H_ACL_SOCKET hSock, FEvSelect pfCB, ESELECT eSelType, TNodeInfo tNodeInfo, void * pContext);
+ACL_API int aclInsertSelectLoopUnsafe(HSockManage hSockMng, H_ACL_SOCKET hSock, FEvSelect pfCB, ESELECT eSelType, TNodeInfo tNodeInfo, void * pContext);
+ACL_API int aclRemoveSelectLoop(HSockManage hSockMng, H_ACL_SOCKET hSock, bool bCloseSock, bool bThreadSafe);
 ACL_API int aclInsertPBMAndSend(HSockManage hSockMng, H_ACL_SOCKET hSock,void * data, int nDataLen);
 
 ACL_API H_ACL_SOCKET aclCreateSocket();

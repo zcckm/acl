@@ -15,6 +15,7 @@
 #include "acl_common.h"
 #include "acl_task.h"
 #include "acl_msgqueue.h"
+#include <string>
 
 // #ifdef __cplusplus
 // extern "C" {
@@ -57,6 +58,14 @@ typedef enum
 ACL_API int aclMsgPush(u32 dwSrcAppInstAddr,u32 dwDstAppInstAddr,u32 dwNodeID,u16 wMsgType,void * pContent,u32 dwContentLen,PUSH_MSG_TYPE eMsgMask);
 ACL_API HSockManage getSockDataManger();
 ACL_API u32 aclSessionIDGenerate();
+
+//轻量级加解密，用于进行3A验证
+u32 lightEncDec(u32 dwDEdata);
+
+//从指定的起始位置开始生成ID
+//如果全局分配ID小于dwStartID则，提升全局分配ID到dwStartID以满足要求
+//如果大于起始ID，则返回正常生成的ID
+ACL_API u32 aclSSIDGenByStartPos(u32 dwStartID);
 //end manage
 // #ifdef __cplusplus
 // }

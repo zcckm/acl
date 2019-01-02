@@ -751,11 +751,11 @@ s32 newTelMsgProcess(H_ACL_SOCKET nFd, ESELECT eEvent, void* pContext)
 	}
 
 	nRcvSize = aclTcpRecv(nFd, szRcvData, MAX_RECV_PACKET_SIZE);
-
-	if (0 == nRcvSize)//attempt to disconnect current connect
+	if (0 >= nRcvSize)//attempt to disconnect current connect
 	{
-        ACL_DEBUG(E_MOD_TELNET, E_TYPE_WARNNING, "[newTelMsgProcess] telnet is disconnected\n");
-		aclRemoveSelectLoopUnsafe(getSockDataManger(), nFd);
+        ACL_DEBUG(E_MOD_TELNET, E_TYPE_WARNNING, "[newTelMsgProcess] telnet is disconnected or error Happen, Recv Ret: [%d]\n", nRcvSize);
+		printf("remove socket %d\n", nFd);
+		aclRemoveSelectLoop(getSockDataManger(), nFd,true,false);
 		telResetParam((HAclTel)ptAclTel);
 		return ACL_ERROR_NOERROR;
 	}
@@ -801,7 +801,7 @@ s32 newTelMsgProcess(H_ACL_SOCKET nFd, ESELECT eEvent, void* pContext)
 		if (0 == strcmp(ptAclTel->m_szCmd, "bye"))
 		{
             ACL_DEBUG(E_MOD_TELNET, E_TYPE_DEBUG, "[newTelMsgProcess] recv CMD:bye SOCK:%X\n",nFd);
-            aclRemoveSelectLoopUnsafe(getSockDataManger() ,nFd);
+			aclRemoveSelectLoop(getSockDataManger() ,nFd,true,false);
 			telResetParam((HAclTel)ptAclTel);
 			return 0;
 		}
@@ -877,7 +877,7 @@ s32 newTelConnProc(H_ACL_SOCKET nFd, ESELECT eEvent, void* pContext)
 	u32 dwConnIP = 0;
 	u16 wConnPort = 0;
 	int nSendDataLen = 0;
-    ACL_DEBUG(E_MOD_TELNET, E_TYPE_DEBUG,"[newTelConnProc] new telnet connect\n");
+    ACL_DEBUG(E_MOD_TELNET, E_TYPE_DEBUG,"[newTelConnProc] new telnet connectX\n");
 	if (ESELECT_READ != eEvent)
 	{
 		return ACL_ERROR_INVALID;
@@ -906,16 +906,22 @@ s32 newTelConnProc(H_ACL_SOCKET nFd, ESELECT eEvent, void* pContext)
 	if (INVALID_SOCKET != g_telFd)//already connected
 	{
         //disconnect old telnet connect
-        //aclRemoveSelectLoop(getSockDataManger(), g_telFd);
-        aclCloseSocket(g_telFd);
+		aclRemoveSelectLoop(getSockDataManger(), g_telFd,true,false);
+        //aclCloseSocket(g_telFd);
+		
 	}
 	g_telFd = hConnSock;
 
 	aclECHO(hConnSock, "*===============================================================*\r\n");
-	aclECHO(hConnSock, "***==============  欢迎使用ACL Telnet Server  ================***\r\n");
+	aclECHO(hConnSock, "***====================   ACL Telnet Server   ================***\r\n");
 	aclECHO(hConnSock, "*===============================================================*\r\n");
 	aclECHO(hConnSock, ptAclTel->m_szPrompt);
-    aclInsertSelectLoopUnsafe(getSockDataManger(), hConnSock, newTelMsgProcess, ESELECT_READ, -1, pContext);
+
+	TNodeInfo tNodeInfo;
+	memset(&tNodeInfo, 0, sizeof(tNodeInfo));
+	tNodeInfo.m_dwNodeSSID = 0;
+	tNodeInfo.m_eNodeType = E_NT_LISTEN;
+    aclInsertSelectLoopUnsafe(getSockDataManger(), hConnSock, newTelMsgProcess, ESELECT_READ, tNodeInfo, pContext);
 	//	getTelnetPrompt(wConnPort);
 	ACL_DEBUG(E_MOD_TELNET, E_TYPE_DEBUG, "[newTelConnProc]  new telnet connected and Port %d\n",wConnPort);
 	aclTcpSend(hConnSock, szMarkBuf, nSendDataLen);
@@ -923,6 +929,38 @@ s32 newTelConnProc(H_ACL_SOCKET nFd, ESELECT eEvent, void* pContext)
 	return ACL_ERROR_NOERROR;
 }
 
+#ifdef _MSC_VER
+int aclCreateProcess(char * pCommand)
+{
+	TCHAR szCommandLine[1024] = { 0 };
+	int iLength;
+
+	iLength = MultiByteToWideChar(CP_ACP, 0, pCommand, strlen(pCommand) + 1, NULL, 0);
+	MultiByteToWideChar(CP_ACP, 0, pCommand, strlen(pCommand) + 1, szCommandLine, iLength);
+
+	STARTUPINFO si;
+	PROCESS_INFORMATION pi;
+	ZeroMemory(&si, sizeof(si));
+	si.cb = sizeof(si);
+	ZeroMemory(&pi, sizeof(pi));
+
+	si.dwFlags = STARTF_USESHOWWINDOW;  // 指定wShowWindow成员有效
+	si.wShowWindow = TRUE;          // 此成员设为TRUE的话则显示新建进程的主窗口，
+									// 为FALSE的话则不显示
+	BOOL bRet = ::CreateProcess(
+		NULL,           // 不在此指定可执行文件的文件名
+		szCommandLine,      // 命令行参数
+		NULL,           // 默认进程安全性
+		NULL,           // 默认线程安全性
+		FALSE,          // 指定当前进程内的句柄不可以被子进程继承
+		CREATE_NEW_CONSOLE, // 为新进程创建一个新的控制台窗口
+		NULL,           // 使用本进程的环境变量
+		NULL,           // 使用本进程的驱动器和目录
+		&si,
+		&pi);
+	return ACL_ERROR_NOERROR;
+}
+#endif
 //=============================================================================
 //函 数 名：aclTelnetInit
 //功	    能：
@@ -971,23 +1009,10 @@ ACL_API int aclTelnetInit( BOOL bTelnet, u16 wPort )
 		PROCESS_INFORMATION piProcInfo; 
 		STARTUPINFO siStartInfo;	
 
-		sprintf((char*)command, "telnet.exe localhost %d", wPort);
-
+		sprintf((char*)command, "telnet.exe 127.0.0.1 %d", wPort);
 		memset(&siStartInfo, 0, sizeof(STARTUPINFO));
 		memset(&piProcInfo, 0, sizeof(PROCESS_INFORMATION));
-
-		siStartInfo.cb = sizeof(STARTUPINFO); 
-		if( !CreateProcess(NULL, (LPWSTR)command, NULL, NULL, FALSE, 
-			CREATE_NEW_CONSOLE, NULL, NULL, &siStartInfo, &piProcInfo) )
-		{
-            ACL_DEBUG(E_MOD_TELNET, E_TYPE_ERROR, "[aclTelnetInit]telnet.exe init failed: LE:%X\n",GetLastError());
-            ACL_DEBUG(E_MOD_TELNET, E_TYPE_ERROR, "[aclTelnetInit] EXEC:%s\n",command);
-            //telnet 即使失败也不能返回错误，因为当前telnet模块已经初始化成功了
-			//return ACL_ERROR_FAILED;
-		}
-
-		hShellProc = piProcInfo.hProcess;
-		hShellThread = piProcInfo.hThread;
+		aclCreateProcess(command);
 #endif
 
 	}

@@ -13,6 +13,7 @@
 #ifndef _ACL_COMMON_H_
 #define _ACL_COMMON_H_
 #include "acl_c.h"
+#include <map>
 
 typedef enum 
 {
@@ -22,7 +23,33 @@ typedef enum
     MSG_HB_MSG,
     MSG_HB_MSG_ACK,
 	MSG_DISCONNECT_NTF,
-}E_INNERMSG;
+	MSG_3A_CHECK_REQ,//S->C 3A检查请求
+	MSG_3A_CHECK_ACK,//C->S 3A检查请求响应
+	MSG_TRY_NEGOT,
+	MSG_NEGOT_CONFIM
+}E_ACLSysMsg;
+
+#define FLEX_LEN 0
+typedef struct tagIDNegot
+{
+	E_ACLSysMsg m_msgIDNegot;
+	u32 m_dwSessionID;
+	u32 m_dwPayLoadLen;
+	unsigned char m_arrPayLoad[FLEX_LEN];
+}TIDNegot;
+
+//MSG_3A_CHECK_REQ,MSG_3A_CHECK_ACK
+typedef struct tag3ACheck
+{
+	u32 m_dwIsBigEden;
+	u32 m_MagicNum;
+}T3ACheckReq,T3ACheckAck;
+
+//协商 MSG_TRY_NEGOT,MSG_NEGOT_CONFIM CS端发送相同结构体
+typedef struct tagTryNegot
+{
+	u32 m_dwSessionID;
+}TTryNegot;
 
 typedef enum
 {
@@ -85,6 +112,14 @@ typedef enum
     ESELECT_ERROR = 0x04,
     ESELECT_CONN  = 0x08
 } ESELECT;
+static std::map<u16, std::string> mapSelectTypePrint =
+{
+	{ E_LET_IT_GO, "E_LET_IT_GO" },
+	{ ESELECT_READ, "ESELECT_READ" },
+	{ ESELECT_WRITE, "ESELECT_WRITE" },
+	{ ESELECT_ERROR, "ESELECT_ERROR" },
+	{ ESELECT_CONN, "ESELECT_CONN" }
+};
 
 
 typedef enum

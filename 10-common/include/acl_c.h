@@ -18,7 +18,7 @@
 //#include "acl_unittest.h"
 #include "acltype.h"
 
-#ifdef WIN32
+#ifdef _WIN32
 #pragma warning (disable:4005)
 #endif
 
@@ -94,6 +94,7 @@
 #pragma warning(disable : 4007)
 #pragma warning(disable : 4103)
 #pragma warning(disable : 4996)  //strncpy unsafe warning
+#pragma warning(disable : 4200)  //zero arry
 
 #if(_MSC_VER >= 1300)
 #include <winsock2.h>
@@ -186,7 +187,7 @@ typedef enum
 }
 
 
-#ifdef WIN32
+#ifdef _WIN32
 
 #define  H_ACL_SOCKET			 SOCKET
 
@@ -271,7 +272,7 @@ typedef struct tagPeerClientInfo
 
 
 //thread fun define
-#ifdef WIN32
+#ifdef _WIN32
 typedef unsigned int(__stdcall * PF_THREAD_ENTRY) (void *);
 #elif defined (_LINUX_)
 typedef void * (*PF_THREAD_ENTRY) (void *);
@@ -286,7 +287,7 @@ typedef enum
 //<--------------------global----------------------- 
 
 //  +++++++++++++++++++timer++++++++++++++++++++++>
-#ifdef WIN32
+#ifdef _WIN32
 typedef int (__stdcall * PF_TIMER_NTF) (void *);
 #elif defined(_LINUX_)
 typedef int ( * PF_TIMER_NTF) (void *);

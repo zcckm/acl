@@ -27,13 +27,7 @@
 //             ---- node ------ WaitEvent
 //                          --- content 
 //                          --- RegCallBack
-typedef enum
-{
-	E_NT_INITED = 0,
-	E_NT_CLIENT,
-	E_NT_SERVER,
-	E_NT_LISTEN,
-}ENODE_TYPE;
+
 
 typedef struct
 {
@@ -226,9 +220,10 @@ ACL_API int aclTCPConnect__(s8 * pNodeIP, u16 wPort)
 	char szRcvSnd3AData[RS_SKHNDBUF_LEN] = {0};
 	int nRet = 0;
 	int nRecvData = 0;
-	u32 dwInnerID = 0;
+	u32 dwSuggestID = 0;
 	struct sockaddr_in nAddr;
-//	struct in_addr tAddr;
+	//接收一次服务端建议ID
+	TIDNegot * ptIDNegot = (TIDNegot *)szRcvSnd3AData;
 
 	if (NULL == pNodeIP)
 	{
@@ -246,7 +241,7 @@ ACL_API int aclTCPConnect__(s8 * pNodeIP, u16 wPort)
 	nAddr.sin_family = AF_INET; 
 	nAddr.sin_addr.s_addr = inet_addr(pNodeIP);
 	nAddr.sin_port = htons(wPort);
-	ACL_DEBUG(E_MOD_NETWORK, E_TYPE_NOTIF, "[aclTCPConnect] start Connect IP:%s PORT:%d...",pNodeIP, ntohs(nAddr.sin_port));
+	ACL_DEBUG(E_MOD_NETWORK, E_TYPE_NOTIF, "[aclTCPConnect]-[Client Side] start Connect IP:%s PORT:%d...",pNodeIP, ntohs(nAddr.sin_port));
 	nRet = connect(hSocket, (struct sockaddr*)&nAddr, sizeof(nAddr));
 	if (nRet < 0)
 	{
@@ -258,45 +253,143 @@ ACL_API int aclTCPConnect__(s8 * pNodeIP, u16 wPort)
 	ACL_DEBUG(E_MOD_NETWORK, E_TYPE_NOTIF,"ok\n");
 	memset(szRcvSnd3AData,0,RS_SKHNDBUF_LEN);
 
-    ACL_DEBUG(E_MOD_NETWORK, E_TYPE_NOTIF, "trying get recv 3A data...");
+	//Step 0.1 recv 3A data from server
+    ACL_DEBUG(E_MOD_NETWORK, E_TYPE_NOTIF, "[aclTCPConnect]-[Step 0.1, 3A Check, Client Side] trying get recv 3A Negotiation, Packet 1...\n");
 	nRecvData = aclTcpRecv(hSocket, szRcvSnd3AData, RS_SKHNDBUF_LEN);
-	if (nRecvData < 0)
-	{ 
-        ACL_DEBUG(E_MOD_NETWORK, E_TYPE_NOTIF, "failed\n");
-		ACL_DEBUG(E_MOD_NETWORK, E_TYPE_ERROR,"[aclTCPConnect] rcv 3A data failed EC:%d\n",nRet);
-		return ACL_ERROR_FAILED;
-	}
-    ACL_DEBUG(E_MOD_NETWORK, E_TYPE_NOTIF, "ok\n");
-	nRet = aclHandle3AData(szRcvSnd3AData, nRecvData);
-	if (ACL_ERROR_NOERROR != nRet)
+	if (sizeof(TIDNegot) + ptIDNegot->m_dwPayLoadLen != nRecvData)
 	{
-		ACL_DEBUG(E_MOD_NETWORK, E_TYPE_ERROR,"[aclTCPConnect] aclHandle3AData EC:%d\n",nRet);
+		ACL_DEBUG(E_MOD_NETWORK, E_TYPE_ERROR, "[aclTCPConnect]-[Step 0.1, 3A Check, Client Side] Recv 3A data failed MsgSize: [Should %d, Real: %d]",
+			sizeof(TIDNegot) + ptIDNegot->m_dwPayLoadLen,
+			nRecvData);
 		return ACL_ERROR_FAILED;
 	}
-    ACL_DEBUG(E_MOD_NETWORK, E_TYPE_NOTIF, "[aclTCPConnect] trying send 3A ACK data...");
-	nRet = aclTcpSend(hSocket, szRcvSnd3AData, nRecvData);
-	if (nRet < 0)
-	{
-        ACL_DEBUG(E_MOD_NETWORK, E_TYPE_NOTIF, "failed\n");
-		ACL_DEBUG(E_MOD_NETWORK, E_TYPE_ERROR,"[aclTCPConnect] send 3A data error EC:%d\n",nRet);
-		return ACL_ERROR_FAILED;
-	}
-    ACL_DEBUG(E_MOD_NETWORK, E_TYPE_NOTIF, "ok\n");
-	nRecvData = 0;
-	memset(szRcvSnd3AData,0,RS_SKHNDBUF_LEN);
-	ACL_DEBUG(E_MOD_NETWORK, E_TYPE_NOTIF, "[aclTCPConnect]start rcv 3A ack packet\n");
-	nRecvData = aclTcpRecv(hSocket, szRcvSnd3AData, RS_SKHNDBUF_LEN);
 
-	nRet = checkPack(szRcvSnd3AData, nRecvData);
-	if (nRet < 0)
+	if (MSG_3A_CHECK_REQ == ptIDNegot->m_msgIDNegot)
 	{
-		ACL_DEBUG(E_MOD_NETWORK, E_TYPE_ERROR, "[aclTCPConnect] recv node info failed EC:%d\n",nRet);
+		T3ACheckReq * pt3ACheckReq = (T3ACheckReq *)ptIDNegot->m_arrPayLoad;
+
+		//判定大小端，如果大小端不匹配
+		if ((IsBigEndian() && pt3ACheckReq->m_dwIsBigEden) || 
+			(!IsBigEndian() && !pt3ACheckReq->m_dwIsBigEden))
+		{
+			//双方都是大端口，或者双方都是小端口
+			//大小端匹配,原样返回
+			ACL_DEBUG(E_MOD_NETWORK, E_TYPE_NOTIF, "[aclTCPConnect][Step 0.1, 3A Check, Client Side] Server And Client Both [%s] Endian\n", pt3ACheckReq->m_dwIsBigEden?"Big":"Small");
+
+			//返回3A Ack消息
+			ptIDNegot->m_msgIDNegot = MSG_3A_CHECK_ACK;
+
+			//解密幻数
+			pt3ACheckReq->m_MagicNum = lightEncDec(pt3ACheckReq->m_MagicNum);
+			nRet = aclTcpSend(hSocket, szRcvSnd3AData, nRecvData);
+		}
+		else
+		{
+			ACL_DEBUG(E_MOD_NETWORK, E_TYPE_ERROR, "[aclTCPConnect][Step 0.1, 3A Check, Client Side] Endian Mismatch Server: [%s Endian], Client: [%s Endian]:\n", pt3ACheckReq->m_dwIsBigEden ? "Big" : "Small", IsBigEndian()?"Big":"Small");
+			return ACL_ERROR_NOTSUP;
+		}
+	}
+	else
+	{
+		ACL_DEBUG(E_MOD_NETWORK, E_TYPE_ERROR, "[aclTCPConnect][Step 0.1, 3A Check, Client Side] Msg Seq failed:%d\n", nRet);
 		return ACL_ERROR_FAILED;
 	}
-	dwInnerID = ((TAclMessage *)szRcvSnd3AData)->m_dwSessionID;
+
+	ACL_DEBUG(E_MOD_NETWORK, E_TYPE_NOTIF, "[aclTCPConnect]-[Step 1.x, Client Side] trying get recv 3A Negotiation, Packet 2...\n");
+	
+	//客户端与服务端开始协商,方案如下:
+	//1.服务端发送生成的最大网络SID作为建议ID，发送协商信令
+	//2.客户端接收后，开始ID跳跃
+	//客户端跳跃逻辑如下:
+	//2.1.如果SID >= ++CID，则跳跃生成CID使得 CID == SID，将ID注册作为会话ID，客户端发送确认指令，流程结束
+	//2.2.如果SID < ++CID,则发送协商信令，将新的CID作为建议ID
+
+	//2.x.如果客户端接收到确认信令，则将确认信令中的SID作为会话ID注册，流程结束
+
+	//3.服务端接收客户端指令
+	//3.1如果为确认信令，则协商结束，服务端将协商的ID作为会话ID
+	//3.2如果服务端接收到协商信令，则开始ID跳跃
+	//服务端跳跃逻辑如下:
+	//3.2.1.如果CID >=++SID，则跳跃生成SID == CID，将ID注册作为会话ID，服务端发送确认信令，流程结束
+	//3.2.2.如果CID < ++SID, 服务端跳转到流程1
+
+	//3.x.如果服务端接收到确认信令，则将确认信令中的CID作为会话ID注册，流程结束
+	BOOL bSessionIDNeg = true;
+	while (bSessionIDNeg)
+	{
+		//接收服务端信令
+		nRecvData = aclTcpRecv(hSocket, szRcvSnd3AData, RS_SKHNDBUF_LEN);
+		if (sizeof(TIDNegot) + ptIDNegot->m_dwPayLoadLen != nRecvData)
+		{
+			ACL_DEBUG(E_MOD_NETWORK, E_TYPE_ERROR, "[aclTCPConnect]-[Step 1, Try Neg, Client Side] Session ID Neg Message Size Error, MsgSize: [Should %d, Real: %d]\n",
+				sizeof(TIDNegot),
+				nRecvData);
+			return ACL_ERROR_FAILED;
+		}
+		switch (ptIDNegot->m_msgIDNegot)
+		{
+		case MSG_TRY_NEGOT:
+		{
+			//Step 1
+			ACL_DEBUG(E_MOD_NETWORK, E_TYPE_NOTIF, "[aclTCPConnect]-[Step 1,Try Neg, Client Side] Get Server SuggestID: [%d]\n", ptIDNegot->m_dwSessionID);
+
+			//Step2
+			dwSuggestID = aclSSIDGenByStartPos(ptIDNegot->m_dwSessionID);
+			ACL_DEBUG(E_MOD_NETWORK, E_TYPE_NOTIF, "[aclTCPConnect]-[Step 2, Try Neg, Client Side] Client get SuggestID: [%d]\n", dwSuggestID);
+
+			//Step 2.1
+			if (dwSuggestID == ptIDNegot->m_dwSessionID)
+			{
+				ptIDNegot->m_msgIDNegot = MSG_NEGOT_CONFIM;
+				ptIDNegot->m_dwSessionID = dwSuggestID;
+				ptIDNegot->m_dwPayLoadLen = 0;
+				nRet = aclTcpSend(hSocket, szRcvSnd3AData, sizeof(TIDNegot));
+				if (nRet < 0)
+				{
+					ACL_DEBUG(E_MOD_NETWORK, E_TYPE_ERROR, "[aclTCPConnect]-[Step 2.1, Neg Confirm, Client Side] Client send Negotiation Confirm Message Failed: [%d]\n", nRet);
+					return ACL_ERROR_FAILED;
+				}
+				//2.1任务结束，Client协商完成，流程结束
+				ACL_DEBUG(E_MOD_NETWORK, E_TYPE_NOTIF, "[aclTCPConnect]-[Step 2.1, Neg Confirm, Client Side] Negotiation confirm, SSID: [%d]\n", dwSuggestID);
+
+				//协商完成，退出协商流程
+				bSessionIDNeg = false;
+				break;
+			}
+			ptIDNegot->m_msgIDNegot = MSG_TRY_NEGOT;
+			ptIDNegot->m_dwSessionID = dwSuggestID;
+			ptIDNegot->m_dwPayLoadLen = 0;
+			//Step 2.2 表示服务端发来的协商失败，客户端推出建议CID作为 SSID
+			nRet = aclTcpSend(hSocket, szRcvSnd3AData, sizeof(TIDNegot));
+			if (nRet < 0)
+			{
+				ACL_DEBUG(E_MOD_NETWORK, E_TYPE_ERROR, "[aclTCPConnect]-[Step 2.2, Try Neg, Client Side] Client send Try Negotiation Message Failed: [%d]\n", nRet);
+				return ACL_ERROR_FAILED;
+			}
+			ACL_DEBUG(E_MOD_NETWORK, E_TYPE_NOTIF, "[aclTCPConnect]-[Step 2.2, Try Neg, Client Side] Client Send CID: [%d] as SSID\n", dwSuggestID);
+			//因为客户端一定会通过ID生成函数，因此可以保证节点数组中的值必定小于此ID
+			break;
+		}
+		case MSG_NEGOT_CONFIM:
+		{
+			//2.x 服务端协商完成
+			dwSuggestID = ptIDNegot->m_dwSessionID;
+			ACL_DEBUG(E_MOD_NETWORK, E_TYPE_NOTIF, "[aclTCPConnect]-[Step 2.x, Neg Confirm, Client Side] Receive SID: [%d] as SSID\n", dwSuggestID);
+			bSessionIDNeg = false;
+			break;
+		}
+		default:
+			ACL_DEBUG(E_MOD_NETWORK, E_TYPE_ERROR, "[aclTCPConnect]-[Step x.x, Client Side] Unsupported Msg: [%d]\n", ptIDNegot->m_msgIDNegot);
+			break;
+		}
+	}
+
 	//current connect is work now,insert to selectLoop now
-	ACL_DEBUG(E_MOD_NETWORK, E_TYPE_NOTIF, "[aclTCPConnect] SOCK[%d] connect success, insert select loop inner ID %d\n", hSocket, dwInnerID);
-	nRet = aclInsertSelectLoop(getSockDataManger(), hSocket, aclNewMsgProcess, ESELECT_READ, dwInnerID, getSockDataManger());
+	ACL_DEBUG(E_MOD_NETWORK, E_TYPE_NOTIF, "[aclTCPConnect] socket: [%d] 3A handshake success, confirm SSID: [%d]\n", hSocket, dwSuggestID);
+	TNodeInfo tNodeInfo;
+	tNodeInfo.m_dwNodeSSID = dwSuggestID;
+	tNodeInfo.m_eNodeType = E_NT_CLIENT;
+	nRet = aclInsertSelectLoop(getSockDataManger(), hSocket, aclNewMsgProcess, ESELECT_READ, tNodeInfo, getSockDataManger());
 	return nRet;//((TAclMessage *)szRcvSnd3AData)->m_dwSessionID;
 }
 
@@ -338,7 +431,7 @@ ACL_API int aclConnClose__(int nNode)
 		unlockLock(ptSockManage->m_hLock);
 		return ACL_ERROR_FAILED;
 	}
-    aclRemoveSelectLoopUnsafe(getSockDataManger(), ptSockManage->m_ptSockNodeArr[i].m_hSock);
+	aclRemoveSelectLoop(getSockDataManger(), ptSockManage->m_ptSockNodeArr[i].m_hSock,true,false);
 	unlockLock(ptSockManage->m_hLock);
 	return ACL_ERROR_NOERROR;
 
@@ -730,6 +823,7 @@ ACL_API int aclResetSockNode(HSockManage hSockManage, int nPos)
 			//对于心跳超时，ACL会向注册APPID=1的APP发送心跳
 			TDisconnNtf tDisconnNtf;
 			tDisconnNtf.m_nSessionID = aclNetNode2Glb(hSockManage, ptSockNode->m_dwNodeNum);
+			aclPrintf(true, false, "reset Session ID %d\n", tDisconnNtf.m_nSessionID);
 			aclMsgPush(MAKEID(1, 0), MAKEID(1, 0), 0, MSG_DISCONNECT_NTF, (u8 *)&tDisconnNtf, sizeof(tDisconnNtf), E_PMT_L_L);
 		}
 #ifdef WIN32
@@ -790,7 +884,7 @@ int aclSelectLoop(TSockManage * ptSockManage,u32 dwWaitMilliSec)
 	lockLock(ptSockManage->m_hLock);
 	for (i = 0; i < ptSockManage->m_nTotalNode; i++)
 	{
-		if (INVALID_SOCKET != ptSockNode[i].m_hSock)
+		if (ptSockNode[i].m_bIsUsed && INVALID_SOCKET != ptSockNode[i].m_hSock)
 		{
 			//current socket is not wait anymore
 			if (E_LET_IT_GO == ptSockNode[i].m_eWaitEvent)
@@ -961,7 +1055,11 @@ ACL_API int aclCreateNode(HSockManage hSockMng, const char * pIPAddr, u16 wPort,
         ACL_DEBUG(E_MOD_MANAGE, E_TYPE_NOTIF, "[aclCreateNode] create socket node at PORT:%d\n", wPort);
 		return ACL_ERROR_FAILED;
 	}
-	nListNodeID = aclInsertSelectLoop(hSockMng, hSockNode, pfCB, ESELECT_READ, -1, pContext);
+	TNodeInfo tNodeInfo;
+	memset(&tNodeInfo, 0, sizeof(tNodeInfo));
+	tNodeInfo.m_dwNodeSSID = 0;
+	tNodeInfo.m_eNodeType = E_NT_LISTEN;
+	nListNodeID = aclInsertSelectLoop(hSockMng, hSockNode, pfCB, ESELECT_READ, tNodeInfo, pContext);
 	return ACL_ERROR_NOERROR;
 
 }
@@ -984,7 +1082,7 @@ ACL_API int aclCreateNode(HSockManage hSockMng, const char * pIPAddr, u16 wPort,
 //=0  表示是服务器插入新的socket，ID要与本地全局ID一致
 //>0 表示是客户端插入新的socket，ID需要输入到节点，并分配全局ID与之对应
 //=============================================================================
-ACL_API int aclInsertSelectLoop(HSockManage hSockMng, H_ACL_SOCKET hSock, FEvSelect pfCB, ESELECT eSelType, int nInnerNodeID, void * pContext)
+ACL_API int aclInsertSelectLoop(HSockManage hSockMng, H_ACL_SOCKET hSock, FEvSelect pfCB, ESELECT eSelType, TNodeInfo tNodeInfo, void * pContext)
 {
 	int i;
 	TSockManage * ptSockManage = NULL;
@@ -1003,7 +1101,7 @@ ACL_API int aclInsertSelectLoop(HSockManage hSockMng, H_ACL_SOCKET hSock, FEvSel
 		ptNewNode = &ptSockManage->m_ptSockNodeArr[i];
 		if (!ptNewNode->m_bIsUsed)//find a node whitch have not used yet
 		{
-			ACL_DEBUG(E_MOD_NETWORK, E_TYPE_DEBUG, "[aclInsertSelectLoop] [%d] has not used SEL TYPE:%d\n",i,eSelType);
+			ACL_DEBUG(E_MOD_NETWORK, E_TYPE_DEBUG, "[aclInsertSelectLoop] SocketMng Index:[%d] has not used SEL TYPE: [%s]\n",i, mapSelectTypePrint[eSelType].c_str());
 			ptNewNode->m_eWaitEvent = eSelType;
 			if (ESELECT_READ == eSelType)
 			{
@@ -1019,7 +1117,8 @@ ACL_API int aclInsertSelectLoop(HSockManage hSockMng, H_ACL_SOCKET hSock, FEvSel
 			{
 				ptNewNode->m_eWaitEvent = (ESELECT)(ESELECT_READ | ESELECT_CONN);
 			}
-			ptNewNode->m_dwNodeNum = nInnerNodeID;// Node start at 1
+			ptNewNode->m_nHBCount = 0;
+			ptNewNode->m_dwNodeNum = tNodeInfo.m_dwNodeSSID;// Node start at 1
 			ptNewNode->m_pfCB = pfCB;//cb to handle new connect
 			ptNewNode->m_hSock = hSock;
 			ptNewNode->m_pContext = pContext;
@@ -1028,43 +1127,25 @@ ACL_API int aclInsertSelectLoop(HSockManage hSockMng, H_ACL_SOCKET hSock, FEvSel
 			break;
 		}
 	}
+
 	if (-1 == nFindNode)// have not find new node
 	{
 		unlockLock(ptSockManage->m_hLock);
         ACL_DEBUG(E_MOD_NETWORK, E_TYPE_WARNNING, "[aclInsertSelectLoop] have not find new node to insert\n");
 		return ACL_ERROR_OVERFLOW;
 	}
+	ptNewNode->m_eNodeType = tNodeInfo.m_eNodeType;
+	//存放全局ID
+	ptSockManage->m_dwNodeMap[nFindNode] = tNodeInfo.m_dwNodeSSID;
 
-	if (0 == nInnerNodeID)//means it is a server insert
-	{
-		dwGlbID = aclSessionIDGenerate();
-		ptNewNode->m_dwNodeNum = dwGlbID;
-		ptNewNode->m_eNodeType = E_NT_SERVER;
-		ACL_DEBUG(E_MOD_NETWORK, E_TYPE_DEBUG, "[aclInsertSelectLoop] aclInsertSelectLoop insert server\n");
-	}
-	else if (-1 == nInnerNodeID)//means it is a listen Node
-	{
-		//local listen ID, not important no glbID alloc
-		ptNewNode->m_dwNodeNum = dwGlbID;
-		ptNewNode->m_eNodeType = E_NT_LISTEN;
-		ACL_DEBUG(E_MOD_NETWORK, E_TYPE_DEBUG, "[aclInsertSelectLoop] aclInsertSelectLoop local listen\n");
-	}
-	else
-	{
-		dwGlbID = aclSessionIDGenerate();
-		ptNewNode->m_eNodeType = E_NT_CLIENT;
-		ACL_DEBUG(E_MOD_NETWORK, E_TYPE_DEBUG, "[aclInsertSelectLoop] aclInsertSelectLoop insert client\n");
-	}
-	ptSockManage->m_dwNodeMap[nFindNode] = dwGlbID;
-    
-    ACL_DEBUG(E_MOD_NETWORK, E_TYPE_DEBUG, "[aclInsertSelectLoop] insert a NETWORK Node ID %d and GlbID %d\n",nInnerNodeID,dwGlbID);
+    ACL_DEBUG(E_MOD_NETWORK, E_TYPE_DEBUG, "[aclInsertSelectLoop] insert a Node SSID: [%d] type : [%s]\n",
+		tNodeInfo.m_dwNodeSSID, mapNodeTypePrint[tNodeInfo.m_eNodeType].c_str());
 
 	unlockLock(ptSockManage->m_hLock);
-
-	return dwGlbID;// return GLBID
+	return tNodeInfo.m_dwNodeSSID;// return GLBID
 }
 
-ACL_API int aclInsertSelectLoopUnsafe(HSockManage hSockMng, H_ACL_SOCKET hSock, FEvSelect pfCB, ESELECT eSelType, int nInnerNodeID, void * pContext)
+ACL_API int aclInsertSelectLoopUnsafe(HSockManage hSockMng, H_ACL_SOCKET hSock, FEvSelect pfCB, ESELECT eSelType, TNodeInfo tNodeInfo, void * pContext)
 {
     int i;
     TSockManage * ptSockManage = NULL;
@@ -1072,7 +1153,7 @@ ACL_API int aclInsertSelectLoopUnsafe(HSockManage hSockMng, H_ACL_SOCKET hSock, 
     int nFindNode = -1;
     u32 dwGlbID = 0;
     ptSockManage = (TSockManage *)hSockMng;
-    CHECK_NULL_RET_INVALID(ptSockManage)
+	CHECK_NULL_RET_INVALID(ptSockManage);
 
     ptNewNode = ptSockManage->m_ptSockNodeArr;
     for (i = 0; i < ptSockManage->m_nTotalNode; i++)
@@ -1082,7 +1163,7 @@ ACL_API int aclInsertSelectLoopUnsafe(HSockManage hSockMng, H_ACL_SOCKET hSock, 
         ptNewNode = &ptSockManage->m_ptSockNodeArr[i];
         if (!ptNewNode->m_bIsUsed)//find a node whitch have not used yet
         {
-            ACL_DEBUG(E_MOD_NETWORK, E_TYPE_DEBUG, "[aclInsertSelectLoopUnsafe] [%d] has not used SEL TYPE:%d\n", i, eSelType);
+			ACL_DEBUG(E_MOD_NETWORK, E_TYPE_DEBUG, "[aclInsertSelectLoop] SocketMng Index:[%d] has not used SEL TYPE: [%s]\n", i, mapSelectTypePrint[eSelType].c_str());
             ptNewNode->m_eWaitEvent = eSelType;
             if (ESELECT_READ == eSelType)
             {
@@ -1098,7 +1179,8 @@ ACL_API int aclInsertSelectLoopUnsafe(HSockManage hSockMng, H_ACL_SOCKET hSock, 
             {
                 ptNewNode->m_eWaitEvent = (ESELECT)(ESELECT_READ | ESELECT_CONN);
             }
-            ptNewNode->m_dwNodeNum = nInnerNodeID;// Node start at 1
+			ptNewNode->m_nHBCount = 0;
+            ptNewNode->m_dwNodeNum = tNodeInfo.m_dwNodeSSID;// Node start at 1
             ptNewNode->m_pfCB = pfCB;//cb to handle new connect
             ptNewNode->m_hSock = hSock;
             ptNewNode->m_pContext = pContext;
@@ -1112,32 +1194,14 @@ ACL_API int aclInsertSelectLoopUnsafe(HSockManage hSockMng, H_ACL_SOCKET hSock, 
         ACL_DEBUG(E_MOD_NETWORK, E_TYPE_WARNNING, "[aclInsertSelectLoopUnsafe] have not find new node to insert\n");
         return ACL_ERROR_OVERFLOW;
     }
+	ptNewNode->m_eNodeType = tNodeInfo.m_eNodeType;
+	//存放全局ID
+	ptSockManage->m_dwNodeMap[nFindNode] = tNodeInfo.m_dwNodeSSID;
 
-    if (0 == nInnerNodeID)//means it is a server insert
-    {
-        dwGlbID = aclSessionIDGenerate();
-        ptNewNode->m_dwNodeNum = dwGlbID;
-        ptNewNode->m_eNodeType = E_NT_SERVER;
-        ACL_DEBUG(E_MOD_NETWORK, E_TYPE_DEBUG, "[aclInsertSelectLoopUnsafe] aclInsertSelectLoopUnsafe insert server\n");
-    }
-    else if (-1 == nInnerNodeID)//means it is a listen Node
-    {
-        //local listen ID, not important no glbID alloc
-        ptNewNode->m_dwNodeNum = dwGlbID;
-        ptNewNode->m_eNodeType = E_NT_LISTEN;
-        ACL_DEBUG(E_MOD_NETWORK, E_TYPE_DEBUG, "[aclInsertSelectLoopUnsafe] aclInsertSelectLoopUnsafe local listen\n");
-    }
-    else
-    {
-        dwGlbID = aclSessionIDGenerate();
-        ptNewNode->m_eNodeType = E_NT_CLIENT;
-        ACL_DEBUG(E_MOD_NETWORK, E_TYPE_DEBUG, "[aclInsertSelectLoopUnsafe] aclInsertSelectLoopUnsafe insert client\n");
-    }
-    ptSockManage->m_dwNodeMap[nFindNode] = dwGlbID;
+	ACL_DEBUG(E_MOD_NETWORK, E_TYPE_DEBUG, "[aclInsertSelectLoop] insert a Node SSID: [%d] type : [%s]\n", 
+		tNodeInfo.m_dwNodeSSID, mapNodeTypePrint[tNodeInfo.m_eNodeType].c_str());
 
-    ACL_DEBUG(E_MOD_NETWORK, E_TYPE_DEBUG, "[aclInsertSelectLoopUnsafe] insert a NETWORK Node ID %d and GlbID %d\n", nInnerNodeID, dwGlbID);
-
-    return dwGlbID;// return GLBID
+    return tNodeInfo.m_dwNodeSSID;// return GLBID
 }
 
 
@@ -1145,7 +1209,7 @@ ACL_API int aclInsertSelectLoopUnsafe(HSockManage hSockMng, H_ACL_SOCKET hSock, 
 //删除指定的socket
 //HSockManage hSockMng     节点管理句柄
 //H_ACL_SOCKET hSock       需要删除的Socket
-ACL_API int aclRemoveSelectLoop(HSockManage hSockMng, H_ACL_SOCKET hSock)
+ACL_API int aclRemoveSelectLoop(HSockManage hSockMng, H_ACL_SOCKET hSock, bool bCloseSock, bool bThreadSafe)
 {
 	int i;
 	TSockManage * ptSockManage = NULL;
@@ -1157,7 +1221,11 @@ ACL_API int aclRemoveSelectLoop(HSockManage hSockMng, H_ACL_SOCKET hSock)
 	{
 		return ACL_ERROR_INVALID;
 	}
-	lockLock(ptSockManage->m_hLock);
+	if (bThreadSafe)
+	{
+		lockLock(ptSockManage->m_hLock);
+	}
+	
 	ptNewNode = ptSockManage->m_ptSockNodeArr;
 	for (i = 0; i < ptSockManage->m_nTotalNode; i++)
 	{
@@ -1169,47 +1237,22 @@ ACL_API int aclRemoveSelectLoop(HSockManage hSockMng, H_ACL_SOCKET hSock)
 				aclFree(ptNewNode->tPktBufMng.pPktBufMng);
 				ptNewNode->tPktBufMng.pPktBufMng = NULL;
 			}
-			aclResetSockNode(hSockMng, i);
+			if (bCloseSock)
+			{
+				aclResetSockNode(hSockMng, i);
+			}
 			nFindNode = i;
             ptNewNode->m_bIsUsed = FALSE;
 			break;
 		}
 	}
-	unlockLock(ptSockManage->m_hLock);
+	if (bThreadSafe)
+	{
+		unlockLock(ptSockManage->m_hLock);
+	}
 	return nFindNode;
 }
 
-ACL_API int aclRemoveSelectLoopUnsafe(HSockManage hSockMng, H_ACL_SOCKET hSock)
-{
-    int i;
-    TSockManage * ptSockManage = NULL;
-    TSockNode * ptNewNode = NULL;
-    int nFindNode = -1;
-    ptSockManage = (TSockManage *)hSockMng;
-    CHECK_NULL_RET_INVALID(ptSockManage);
-    if (INVALID_SOCKET == hSock)
-    {
-        return ACL_ERROR_INVALID;
-    }
-    ptNewNode = ptSockManage->m_ptSockNodeArr;
-    for (i = 0; i < ptSockManage->m_nTotalNode; i++)
-    {
-        ptNewNode = &ptSockManage->m_ptSockNodeArr[i];
-        if (hSock == ptNewNode->m_hSock)//find out this socket
-        {
-            if (ptNewNode->tPktBufMng.pPktBufMng)
-            {
-                aclFree(ptNewNode->tPktBufMng.pPktBufMng);
-                ptNewNode->tPktBufMng.pPktBufMng = NULL;
-            }
-            aclResetSockNode(hSockMng, i);
-            nFindNode = i;
-            ptNewNode->m_bIsUsed = FALSE;
-            break;
-        }
-    }
-    return nFindNode;
-}
 
 //heart beat confirmed
 //=============================================================================
@@ -1378,7 +1421,7 @@ int aclConnect3AThread(void * pParam)
 			//socket has already finish 3A, reset it now
 			if (ptSockNode[i].m_eWaitEvent & ESELECT_CONN && INVALID_SOCKET == ptSockNode[i].m_hSock)
 			{
-				aclResetSockNode((HSockManage)ptSockManage, i);
+				//aclResetSockNode((HSockManage)ptSockManage, i);
 			}
 		}
 		aclSelectLoop(ptSockManage, SELECT_3A_INTERVAL);
@@ -1517,7 +1560,7 @@ ACL_API void aclShowNode()
     {
         if (E_NT_INITED != ptSockManage->m_ptSockNodeArr[i].m_eNodeType)
         {
-            aclPrintf(TRUE, FALSE, "Node: %d\tSocket: %X\t NodeType:%s\n", 
+            aclPrintf(TRUE, FALSE, "SSID: [%d]\tSocket: [%X]\t NodeType: [%s]\n", 
                ptSockManage->m_ptSockNodeArr[i].m_dwNodeNum,
                ptSockManage->m_ptSockNodeArr[i].m_hSock,
                (E_NT_LISTEN == ptSockManage->m_ptSockNodeArr[i].m_eNodeType)? "NODE_LISTEN":\
@@ -1556,7 +1599,7 @@ ACL_API int aclFindSocketNode(HSockManage hSockMng, H_ACL_SOCKET hSock, TSockNod
 	for (i = 0; i < ptSockManage->m_nTotalNode; i++)
 	{
 		ptNewNode = &ptSockManage->m_ptSockNodeArr[i];
-		if (hSock == ptNewNode->m_hSock)//find out this socket
+		if (ptNewNode->m_bIsUsed && hSock == ptNewNode->m_hSock)//find out this socket
 		{
 			* pptSockNode = ptNewNode;
 			return ACL_ERROR_NOERROR;
@@ -1595,7 +1638,7 @@ ACL_API int aclCheckPktBufMngContent(TPktBufMng * ptPktMng, int * pnSize)
 	if (ptAclMsg->m_dwPackLen <= ptPktMng->dwCurePBMSize)
 	{
 		//发现完整包,可以输出
-		ACL_DEBUG(E_MOD_MSG, E_TYPE_NOTIF,"[aclCheckPktBufMngContent] find a new packet and ready to send BufData<%d> PktLen<%d>,\n", ptPktMng->dwCurePBMSize, ptAclMsg->m_dwPackLen);
+		ACL_DEBUG(E_MOD_MSG, E_TYPE_NOTIF,"[aclCheckPktBufMngContent] find a new packet At Receive Cache,  BufData:[%d], PktLen: [%d], Splicing MsgType: [%d],\n", ptPktMng->dwCurePBMSize, ptAclMsg->m_dwPackLen, ptAclMsg->m_wMsgType);
 		* pnSize = ptAclMsg->m_dwPackLen;
 		return ACL_ERROR_NOERROR;
 	}

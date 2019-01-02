@@ -52,7 +52,7 @@ typedef unsigned long long u64;
 #endif
 */
 
-#ifdef WIN32
+#ifdef _WIN32
 
 #else
 #ifndef BOOL
