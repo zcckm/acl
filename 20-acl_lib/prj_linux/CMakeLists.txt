@@ -28,6 +28,9 @@ if(PROCESSOR_TYPE STREQUAL "x3399")
 	#set release version options
 	SET(CMAKE_CXX_FLAGS_RELEASE "$ENV{CXXFLAGS}")
 else()
+	if(NOT CMAKE_BUILD_TYPE)
+		SET(CMAKE_BUILD_TYPE "Release")
+	endif()
     SET(CMAKE_C_COMPILER "gcc")
     SET(CMAKE_C_COMPILER "g++")
 	
@@ -35,7 +38,7 @@ else()
 	SET(CMAKE_CXX_FLAGS_DEBUG "$ENV{CXXFLAGS} -O0 -g -std=c++11")
 	
 	#set release version options
-	SET(CMAKE_CXX_FLAGS_RELEASE "$ENV{CXXFLAGS} -O3  -fPIC  -std=c++11")
+	SET(CMAKE_CXX_FLAGS_RELEASE "$ENV{CXXFLAGS} -O3 -fPIC -std=c++11")
 endif()
 
 
@@ -54,10 +57,10 @@ INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR}/../include ${CMAKE_CURRENT_SOURC
 #LINK_DIRECTORIES(${CMAKE_CURRENT_LIST_DIR}/sqlite3/lib ${CMAKE_CURRENT_SOURCE_DIR}/../10-common/lib/release/linux)
 
 #fetch source files in specific dir to variable 
-aux_source_directory(${CMAKE_CURRENT_SOURCE_DIR}/../src DIR_SRS_RTMP)
+aux_source_directory(${CMAKE_CURRENT_SOURCE_DIR}/../src DIR_SRC)
 
 #generate .so or .a lib file in the previous specifix path of LIBRARY_OUTPUT_PATH
-add_library(acl_lib STATIC ${DIR_SRS_RTMP})
+add_library(acl_lib STATIC ${DIR_SRC})
 
 
 

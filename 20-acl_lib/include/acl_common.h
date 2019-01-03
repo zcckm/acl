@@ -14,7 +14,7 @@
 #define _ACL_COMMON_H_
 #include "acl_c.h"
 #include <map>
-
+#include <string>
 typedef enum 
 {
     MSG_3A            = 1,  //3A mess
