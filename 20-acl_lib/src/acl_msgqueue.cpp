@@ -238,6 +238,11 @@ int insertAclMsg(PTMSG_QUEUE ptAclMsgQueue,TAclMessage * ptAclMsg)
 	//模式改为覆盖没有处理的消息，后续会修改成为可配置类型
 		ptAclMsgQueue->dwDropMsgCount++;
        unlockLock(ptAclMsgQueue->hQueLock);
+	   //对于缓冲已经满的情况，因为没有启用覆盖模式，因此需要将分配的内存释放一下
+	   if (ptAclMsg->m_pContent)
+	   {
+		   aclFree(ptAclMsg->m_pContent);
+	   }
        return ACL_ERROR_OVERFLOW;
         ptAclMsgQueue->LACP = ptAclMsgQueue->LACP->ptNext;
 		aclPrintf(TRUE, FALSE, "[insertAclMsg] overflow, Msg SRC_ID: %X DST_ID: %X\n", ptAclMsg->m_dwSrcIID, ptAclMsg->m_dwDstIID);
