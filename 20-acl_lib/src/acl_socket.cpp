@@ -241,20 +241,20 @@ ACL_API int aclTCPConnect__(s8 * pNodeIP, u16 wPort)
 	nAddr.sin_family = AF_INET; 
 	nAddr.sin_addr.s_addr = inet_addr(pNodeIP);
 	nAddr.sin_port = htons(wPort);
-	ACL_DEBUG(E_MOD_NETWORK, E_TYPE_NOTIF, "[aclTCPConnect]-[Client Side] start Connect IP:%s PORT:%d...",pNodeIP, ntohs(nAddr.sin_port));
+	ACL_DEBUG(E_MOD_NETWORK, E_TYPE_KEY, "[aclTCPConnect]-[Client Side] start Connect IP:%s PORT:%d...",pNodeIP, ntohs(nAddr.sin_port));
 	nRet = connect(hSocket, (struct sockaddr*)&nAddr, sizeof(nAddr));
 	if (nRet < 0)
 	{
-		ACL_DEBUG(E_MOD_NETWORK, E_TYPE_NOTIF,"failed\n");
+		ACL_DEBUG(E_MOD_NETWORK, E_TYPE_KEY,"failed\n");
 		ACL_DEBUG(E_MOD_NETWORK, E_TYPE_ERROR,"[acl_sock] connect failed EC:%d\n",nRet);
 		aclCloseSocket(hSocket);
 		return ACL_ERROR_FAILED;
 	}
-	ACL_DEBUG(E_MOD_NETWORK, E_TYPE_NOTIF,"ok\n");
+	ACL_DEBUG(E_MOD_NETWORK, E_TYPE_KEY,"ok\n");
 	memset(szRcvSnd3AData,0,RS_SKHNDBUF_LEN);
 
 	//Step 0.1 recv 3A data from server
-    ACL_DEBUG(E_MOD_NETWORK, E_TYPE_NOTIF, "[aclTCPConnect]-[Step 0.1, 3A Check, Client Side] trying get recv 3A Negotiation, Packet 1...\n");
+    ACL_DEBUG(E_MOD_NETWORK, E_TYPE_KEY, "[aclTCPConnect]-[Step 0.1, 3A Check, Client Side] trying get recv 3A Negotiation, Packet 1...\n");
 	nRecvData = aclTcpRecv(hSocket, szRcvSnd3AData, RS_SKHNDBUF_LEN);
 	if (sizeof(TIDNegot) + ptIDNegot->m_dwPayLoadLen != nRecvData)
 	{
@@ -286,16 +286,18 @@ ACL_API int aclTCPConnect__(s8 * pNodeIP, u16 wPort)
 		else
 		{
 			ACL_DEBUG(E_MOD_NETWORK, E_TYPE_ERROR, "[aclTCPConnect][Step 0.1, 3A Check, Client Side] Endian Mismatch Server: [%s Endian], Client: [%s Endian]:\n", pt3ACheckReq->m_dwIsBigEden ? "Big" : "Small", IsBigEndian()?"Big":"Small");
+			aclCloseSocket(hSocket);
 			return ACL_ERROR_NOTSUP;
 		}
 	}
 	else
 	{
 		ACL_DEBUG(E_MOD_NETWORK, E_TYPE_ERROR, "[aclTCPConnect][Step 0.1, 3A Check, Client Side] Msg Seq failed:%d\n", nRet);
+		aclCloseSocket(hSocket);
 		return ACL_ERROR_FAILED;
 	}
 
-	ACL_DEBUG(E_MOD_NETWORK, E_TYPE_NOTIF, "[aclTCPConnect]-[Step 1.x, Client Side] trying get recv 3A Negotiation, Packet 2...\n");
+	ACL_DEBUG(E_MOD_NETWORK, E_TYPE_KEY, "[aclTCPConnect]-[Step 1.x, Client Side] trying get recv 3A Negotiation, Packet 2...\n");
 	
 	//客户端与服务端开始协商,方案如下:
 	//1.服务端发送生成的最大网络SID作为建议ID，发送协商信令
@@ -324,6 +326,7 @@ ACL_API int aclTCPConnect__(s8 * pNodeIP, u16 wPort)
 			ACL_DEBUG(E_MOD_NETWORK, E_TYPE_ERROR, "[aclTCPConnect]-[Step 1, Try Neg, Client Side] Session ID Neg Message Size Error, MsgSize: [Should %d, Real: %d]\n",
 				sizeof(TIDNegot),
 				nRecvData);
+			aclCloseSocket(hSocket);
 			return ACL_ERROR_FAILED;
 		}
 		switch (ptIDNegot->m_msgIDNegot)
@@ -335,7 +338,7 @@ ACL_API int aclTCPConnect__(s8 * pNodeIP, u16 wPort)
 
 			//Step2
 			dwSuggestID = aclSSIDGenByStartPos(ptIDNegot->m_dwSessionID);
-			ACL_DEBUG(E_MOD_NETWORK, E_TYPE_NOTIF, "[aclTCPConnect]-[Step 2, Try Neg, Client Side] Client get SuggestID: [%d]\n", dwSuggestID);
+			ACL_DEBUG(E_MOD_NETWORK, E_TYPE_KEY, "[aclTCPConnect]-[Step 2, Try Neg, Client Side] Client get SuggestID: [%d]\n", dwSuggestID);
 
 			//Step 2.1
 			if (dwSuggestID == ptIDNegot->m_dwSessionID)
@@ -347,10 +350,11 @@ ACL_API int aclTCPConnect__(s8 * pNodeIP, u16 wPort)
 				if (nRet < 0)
 				{
 					ACL_DEBUG(E_MOD_NETWORK, E_TYPE_ERROR, "[aclTCPConnect]-[Step 2.1, Neg Confirm, Client Side] Client send Negotiation Confirm Message Failed: [%d]\n", nRet);
+					aclCloseSocket(hSocket);
 					return ACL_ERROR_FAILED;
 				}
 				//2.1任务结束，Client协商完成，流程结束
-				ACL_DEBUG(E_MOD_NETWORK, E_TYPE_NOTIF, "[aclTCPConnect]-[Step 2.1, Neg Confirm, Client Side] Negotiation confirm, SSID: [%d]\n", dwSuggestID);
+				ACL_DEBUG(E_MOD_NETWORK, E_TYPE_KEY, "[aclTCPConnect]-[Step 2.1, Neg Confirm, Client Side] Negotiation confirm, SSID: [%d]\n", dwSuggestID);
 
 				//协商完成，退出协商流程
 				bSessionIDNeg = false;
@@ -364,9 +368,10 @@ ACL_API int aclTCPConnect__(s8 * pNodeIP, u16 wPort)
 			if (nRet < 0)
 			{
 				ACL_DEBUG(E_MOD_NETWORK, E_TYPE_ERROR, "[aclTCPConnect]-[Step 2.2, Try Neg, Client Side] Client send Try Negotiation Message Failed: [%d]\n", nRet);
+				aclCloseSocket(hSocket);
 				return ACL_ERROR_FAILED;
 			}
-			ACL_DEBUG(E_MOD_NETWORK, E_TYPE_NOTIF, "[aclTCPConnect]-[Step 2.2, Try Neg, Client Side] Client Send CID: [%d] as SSID\n", dwSuggestID);
+			ACL_DEBUG(E_MOD_NETWORK, E_TYPE_KEY, "[aclTCPConnect]-[Step 2.2, Try Neg, Client Side] Client Send CID: [%d] as SSID\n", dwSuggestID);
 			//因为客户端一定会通过ID生成函数，因此可以保证节点数组中的值必定小于此ID
 			break;
 		}
@@ -374,7 +379,7 @@ ACL_API int aclTCPConnect__(s8 * pNodeIP, u16 wPort)
 		{
 			//2.x 服务端协商完成
 			dwSuggestID = ptIDNegot->m_dwSessionID;
-			ACL_DEBUG(E_MOD_NETWORK, E_TYPE_NOTIF, "[aclTCPConnect]-[Step 2.x, Neg Confirm, Client Side] Receive SID: [%d] as SSID\n", dwSuggestID);
+			ACL_DEBUG(E_MOD_NETWORK, E_TYPE_KEY, "[aclTCPConnect]-[Step 2.x, Neg Confirm, Client Side] Receive SID: [%d] as SSID\n", dwSuggestID);
 			bSessionIDNeg = false;
 			break;
 		}
@@ -385,7 +390,7 @@ ACL_API int aclTCPConnect__(s8 * pNodeIP, u16 wPort)
 	}
 
 	//current connect is work now,insert to selectLoop now
-	ACL_DEBUG(E_MOD_NETWORK, E_TYPE_NOTIF, "[aclTCPConnect] socket: [%d] 3A handshake success, confirm SSID: [%d]\n", hSocket, dwSuggestID);
+	ACL_DEBUG(E_MOD_NETWORK, E_TYPE_KEY, "[aclTCPConnect] socket: [%d] 3A handshake success, confirm SSID: [%d]\n", hSocket, dwSuggestID);
 	TNodeInfo tNodeInfo;
 	tNodeInfo.m_dwNodeSSID = dwSuggestID;
 	tNodeInfo.m_eNodeType = E_NT_CLIENT;
@@ -799,7 +804,7 @@ ACL_API int aclCombPack(s8 * pCombBuf,u32 dwBufSize, TAclMessage * ptHead, char 
 }
 
 
-ACL_API int aclResetSockNode(HSockManage hSockManage, int nPos)
+ACL_API int aclResetSockNode(HSockManage hSockManage, int nPos, bool bCloseSocket)
 {
 	TSockManage * ptSockMng = NULL;
 	TSockNode * ptSockNode = NULL;
@@ -815,7 +820,7 @@ ACL_API int aclResetSockNode(HSockManage hSockManage, int nPos)
 	}
 	ptSockNode = &ptSockMng->m_ptSockNodeArr[nPos];
 
-	if (INVALID_SOCKET != ptSockNode->m_hSock)
+	if (INVALID_SOCKET != ptSockNode->m_hSock && bCloseSocket)
 	{
 		if (ptSockNode->m_dwNodeNum > 0)
 		{
@@ -949,15 +954,15 @@ int aclSelectLoop(TSockManage * ptSockManage,u32 dwWaitMilliSec)
 				if (ptSockNode->m_pfCB)
 				{
 					nRet = (*ptSockNode->m_pfCB)(ptSockNode->m_hSock, ptSockNode->m_eWaitEvent, ptSockNode->m_pContext);
-					if (ESELECT_CONN & ptSockNode->m_eWaitEvent)//this is a 3A process
-					{
-						if (ACL_ERROR_NOERROR == nRet)//3A is Pass, delete it
-						{
-							//when time is up 3A thread will delete it automatically
-							//set INVALID_SOCKET can prevent thread from closing socket
-							ptSockNode->m_hSock = INVALID_SOCKET;
-						}
-					}
+// 					if (ESELECT_CONN & ptSockNode->m_eWaitEvent)//this is a 3A process
+// 					{
+// 						if (ACL_ERROR_NOERROR == nRet)//3A is Pass, delete it
+// 						{
+// 							//when time is up 3A thread will delete it automatically
+// 							//set INVALID_SOCKET can prevent thread from closing socket
+// 							ptSockNode->m_hSock = INVALID_SOCKET;
+// 						}
+// 					}
 				}
 			}
 			if((ESELECT_WRITE & ptSockNode->m_eWaitEvent) && 
@@ -1008,7 +1013,8 @@ int aclSockHBCheckLoop(TSockManage * ptSockManage,u32 dwWaitMilliSec)
 		if( ptSockNode[i].m_nHBCount > HB_TIMEOUT/(int)dwWaitMilliSec)
 		{
 			//time is up, remove current 3A check
-			aclResetSockNode((HSockManage)ptSockManage, i);
+			ACL_DEBUG(E_MOD_HB, E_TYPE_KEY, "[aclSockHBCheckLoop] TimeOut Reset Socket:[%X], Pos: [%d]\n", ptSockNode[i].m_hSock, i, ptSockNode[i].m_nHBCount);
+			aclResetSockNode((HSockManage)ptSockManage, i, true);
 		}
 
 		//connected node, and must be a client Node
@@ -1059,7 +1065,9 @@ ACL_API int aclCreateNode(HSockManage hSockMng, const char * pIPAddr, u16 wPort,
 	memset(&tNodeInfo, 0, sizeof(tNodeInfo));
 	tNodeInfo.m_dwNodeSSID = 0;
 	tNodeInfo.m_eNodeType = E_NT_LISTEN;
-	nListNodeID = aclInsertSelectLoop(hSockMng, hSockNode, pfCB, ESELECT_READ, tNodeInfo, pContext);
+
+	nListNodeID = aclInsertSelectLoop(hSockMng, hSockNode, pfCB, ESELECT_CONN, tNodeInfo, pContext);
+	
 	return ACL_ERROR_NOERROR;
 
 }
@@ -1099,9 +1107,9 @@ ACL_API int aclInsertSelectLoop(HSockManage hSockMng, H_ACL_SOCKET hSock, FEvSel
 		//这里每次自加貌似没错，其实造成累加
 //		ptNewNode = ptNewNode + i;//NB BUG 
 		ptNewNode = &ptSockManage->m_ptSockNodeArr[i];
-		if (!ptNewNode->m_bIsUsed)//find a node whitch have not used yet
+		if (!ptNewNode->m_bIsUsed)//find a node which have not used yet
 		{
-			ACL_DEBUG(E_MOD_NETWORK, E_TYPE_DEBUG, "[aclInsertSelectLoop] SocketMng Index:[%d] has not used SEL TYPE: [%s]\n",i, mapSelectTypePrint[eSelType].c_str());
+			ACL_DEBUG(E_MOD_NETWORK, E_TYPE_KEY, "[aclInsertSelectLoop] SocketMng Index:[%d] has not used SEL TYPE: [%s]\n",i, mapSelectTypePrint[eSelType].c_str());
 			ptNewNode->m_eWaitEvent = eSelType;
 			if (ESELECT_READ == eSelType)
 			{
@@ -1138,8 +1146,8 @@ ACL_API int aclInsertSelectLoop(HSockManage hSockMng, H_ACL_SOCKET hSock, FEvSel
 	//存放全局ID
 	ptSockManage->m_dwNodeMap[nFindNode] = tNodeInfo.m_dwNodeSSID;
 
-    ACL_DEBUG(E_MOD_NETWORK, E_TYPE_DEBUG, "[aclInsertSelectLoop] insert a Node SSID: [%d] type : [%s]\n",
-		tNodeInfo.m_dwNodeSSID, mapNodeTypePrint[tNodeInfo.m_eNodeType].c_str());
+    ACL_DEBUG(E_MOD_NETWORK, E_TYPE_KEY, "[aclInsertSelectLoop] insert a Node SSID: [%d] type : [%s], OBJ: [%X]\n",
+		tNodeInfo.m_dwNodeSSID, mapNodeTypePrint[tNodeInfo.m_eNodeType].c_str(), hSockMng);
 
 	unlockLock(ptSockManage->m_hLock);
 	return tNodeInfo.m_dwNodeSSID;// return GLBID
@@ -1237,10 +1245,8 @@ ACL_API int aclRemoveSelectLoop(HSockManage hSockMng, H_ACL_SOCKET hSock, bool b
 				aclFree(ptNewNode->tPktBufMng.pPktBufMng);
 				ptNewNode->tPktBufMng.pPktBufMng = NULL;
 			}
-			if (bCloseSock)
-			{
-				aclResetSockNode(hSockMng, i);
-			}
+			//根据需要，决定是否需要重置Socket
+			aclResetSockNode(hSockMng, i, bCloseSock);
 			nFindNode = i;
             ptNewNode->m_bIsUsed = FALSE;
 			break;
@@ -1405,45 +1411,47 @@ int aclConnect3AThread(void * pParam)
 	ACL_DEBUG(E_MOD_MANAGE, E_TYPE_NOTIF,"ok\n");
 	while(E_TASK_RUNNING == ptSockManage->m_eMainTaskStatus)
 	{
-//		lockLock(ptSockManage->m_hLock);
+		lockLock(ptSockManage->m_hLock);
 		for (i = 0; i < ptSockManage->m_nTotalNode; i++)
 		{
-			if (ptSockNode[i].m_eWaitEvent & ESELECT_READ)
+			//是读且不可以为Conn的对象，需要进行超时检测
+			if ((ptSockNode[i].m_eWaitEvent & ESELECT_READ) &&
+				!(ptSockNode[i].m_eWaitEvent & ESELECT_CONN))
 			{
 				if (ptSockNode[i].m_nSelectCount * SELECT_3A_INTERVAL > CHECK_3A_TIMEOUT)
 				{
 					//time is up, remove current 3A check
-					aclPrintf(TRUE,FALSE, "----------3A check node: %d count %d\n", ptSockNode[i].m_hSock, ptSockNode[i].m_nSelectCount);
-					aclResetSockNode((HSockManage)ptSockManage, i);
+					ACL_DEBUG(E_MOD_MANAGE, E_TYPE_KEY, "[aclConnect3AThread] 3A CheckSocket [0X%X], Select Count:[%d], timeout, Delete it \n",
+						ptSockNode[i].m_hSock, ptSockNode[i].m_nSelectCount);
+					aclResetSockNode((HSockManage)ptSockManage, i, true);
 				}
 			}
-
-			//socket has already finish 3A, reset it now
-			if (ptSockNode[i].m_eWaitEvent & ESELECT_CONN && INVALID_SOCKET == ptSockNode[i].m_hSock)
-			{
-				//aclResetSockNode((HSockManage)ptSockManage, i);
-			}
 		}
+		unlockLock(ptSockManage->m_hLock);
 		aclSelectLoop(ptSockManage, SELECT_3A_INTERVAL);
-//		unlockLock(ptSockManage->m_hLock);
+		
 	}
 
     //3A Thread is exit , reset all SockNode
+	lockLock(ptSockManage->m_hLock);
     for (i = 0; i < ptSockManage->m_nTotalNode; i++)
     {
         if (ptSockNode[i].m_eWaitEvent & ESELECT_READ)
         {
                 //reset
-                aclResetSockNode((HSockManage)ptSockManage, i);
+				ACL_DEBUG(E_MOD_MANAGE, E_TYPE_KEY, "[aclConnect3AThread] aclConnect3AThread terminated, Read event reset Socket,  Pos: [%d]\n");
+                aclResetSockNode((HSockManage)ptSockManage, i, true);
         }
         //socket has already finish 3A, reset it now
         if (ptSockNode[i].m_eWaitEvent & ESELECT_CONN && INVALID_SOCKET == ptSockNode[i].m_hSock)
         {
-            aclResetSockNode((HSockManage)ptSockManage, i);
+			ACL_DEBUG(E_MOD_MANAGE, E_TYPE_KEY, "[aclConnect3AThread] aclConnect3AThread terminated, Connect event reset Socket reset Socket Pos: [%d]\n");
+            aclResetSockNode((HSockManage)ptSockManage, i, true);
         }
     }
     ptSockManage->m_eMainTaskStatus = E_TASK_ALREADY_EXIT;
-	ACL_DEBUG(E_MOD_MANAGE, E_TYPE_NOTIF,"[aclConnect3AThread] aclConnect3AThread terminated\n");
+	unlockLock(ptSockManage->m_hLock);
+	ACL_DEBUG(E_MOD_MANAGE, E_TYPE_KEY,"[aclConnect3AThread] aclConnect3AThread terminated\n");
 	return ACL_ERROR_NOERROR;
 }
 
@@ -1569,6 +1577,28 @@ ACL_API void aclShowNode()
     }
     aclPrintf(TRUE, FALSE, "*********************Node List end  *********************\n");
 
+}
+
+
+ACL_API void aclShow3ASocket()
+{
+	TSockManage *  ptSockManage = (TSockManage *)getSock3AManger();
+	int i = 0;
+	CHECK_NULL_RET(ptSockManage);
+
+	aclPrintf(TRUE, FALSE, "*********************Node List start*********************\n");
+	for (i = 0; i < ptSockManage->m_nTotalNode; i++)
+	{
+		if (E_NT_INITED != ptSockManage->m_ptSockNodeArr[i].m_eNodeType)
+		{
+			aclPrintf(TRUE, FALSE, "SSID: [%d]\tSocket: [%X]\t NodeType: [%s]\n",
+				ptSockManage->m_ptSockNodeArr[i].m_dwNodeNum,
+				ptSockManage->m_ptSockNodeArr[i].m_hSock,
+				(E_NT_LISTEN == ptSockManage->m_ptSockNodeArr[i].m_eNodeType) ? "NODE_LISTEN" : \
+				(E_NT_CLIENT == ptSockManage->m_ptSockNodeArr[i].m_eNodeType) ? "NODE_CLIENT" : "NODE_SERVER");
+		}
+	}
+	aclPrintf(TRUE, FALSE, "*********************Node List end  *********************\n");
 }
 
 /*====================================================================

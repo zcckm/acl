@@ -13,7 +13,9 @@
 #define _ACL_C_H_
 
 //linux 下编译需要打开此宏定义
-//#define _LINUX_
+#ifndef _WIN32
+#define _LINUX_
+#endif
 
 //#include "acl_unittest.h"
 #include "acltype.h"

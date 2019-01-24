@@ -44,6 +44,8 @@ ACL_API u32 aclGetTickCount();
 //socket
 ACL_API void aclShowNode();
 
+ACL_API void aclShow3ASocket();
+
 //telnet
 ACL_API int aclTelnetInit(BOOL bTelnet, u16 wPort);
 ACL_API int aclTelnetExit();
@@ -124,6 +126,11 @@ ACL_API void * aclInstanceManageThread(void * param);
 ACL_API HSockManage getSockDataManger()
 {
 	return g_tGlbParam.m_hSockMngData;
+}
+
+ACL_API HSockManage getSock3AManger()
+{
+	return g_tGlbParam.m_hSockMng3A;
 }
 
 TAclApp * getAclApp(u16 nNewAppID)
@@ -243,7 +250,9 @@ ACL_API int aclInit( BOOL bTelnet, u16 wTelPort )
     unlockLock(g_tGlbParam.m_hAclGlbLock);
     aclRegCommand("showapp", (void *)aclShowApp, "show all App");
     aclRegCommand("shownode", (void *)aclShowNode, "show all Node Info");
-	ACL_DEBUG(E_MOD_MANAGE,E_TYPE_NOTIF,"[aclInit] acl project init\n");
+	aclRegCommand("show3A", (void *)aclShow3ASocket, "show all 3A Node Info");
+	
+	ACL_DEBUG(E_MOD_MANAGE,E_TYPE_KEY,"[aclInit] acl project init\n");
     return ACL_ERROR_NOERROR;
 }
 
@@ -1184,13 +1193,13 @@ s32 newConn3ACheck(H_ACL_SOCKET nFd, ESELECT eEvent, void* pContext)
 {
 	char szRcvSnd3AData[RS_SKHNDBUF_LEN] = {0};
 	int nRet = 0;
+	int nErrorCode = 0;
 	int nRcvSize = 0;
 	int i = 0;
 	int nRecvData = 0;
     char * p3AContent = NULL;
 	u32 dwSuggestID = 0;
 	TIDNegot * ptIDNegot = (TIDNegot *)szRcvSnd3AData;
-	aclPrintf(TRUE, FALSE, "new Conn3Acheck print because new message Socket 0X%X, event %X, msg Type %d, recv len %d\n", nFd, eEvent, ptIDNegot->m_msgIDNegot, nRecvData);
 // 	if (!(ESELECT_CONN & eEvent))
 // 	{
 // 		aclPrintf(E_MOD_NETWORK, E_TYPE_ERROR, "[newConn3ACheck] confused conn3A got not conn socket status\n");
@@ -1219,12 +1228,24 @@ s32 newConn3ACheck(H_ACL_SOCKET nFd, ESELECT eEvent, void* pContext)
 	//对于服务端，绝对不可以阻塞
 	//接收服务端信令
 	nRecvData = aclTcpRecv(nFd, szRcvSnd3AData, RS_SKHNDBUF_LEN);
+	ACL_DEBUG(E_MOD_NETWORK, E_TYPE_KEY, "Recv New 3A Check message, Socket: [0X%X], event: [%X], msg Type: [%s, %d], recv len: [%d]\n", nFd, eEvent, mapSYSMsgTypePrint[ptIDNegot->m_msgIDNegot].c_str(),ptIDNegot->m_msgIDNegot, nRecvData);
+	if (nRecvData <= 0)
+	{
+		ACL_DEBUG(E_MOD_NETWORK, E_TYPE_ERROR, "[newConn3ACheck]-[Step x, Server Side, Exception] Socket: [0X%X], Recv Message Size Error Recv: [%d], something wrong, close it\n",
+			nFd,
+			nRecvData);
+		nErrorCode = ACL_ERROR_FAILED;
+		goto ErrorRet;
+	}
+
 	if (sizeof(TIDNegot) + ptIDNegot->m_dwPayLoadLen != nRecvData)
 	{
-		ACL_DEBUG(E_MOD_NETWORK, E_TYPE_NOTIF, "[newConn3ACheck]-[Step x, Common Msg, Server Side] Session ID Neg Message Size Error, MsgSize: [Should %d, Real: %d]\n",
+		ACL_DEBUG(E_MOD_NETWORK, E_TYPE_ERROR, "[newConn3ACheck]-[Step x, Common Msg, Server Side] Socket: [0X%X], Session ID Neg Message Size Error, MsgSize: [Should %d, Real: %d]\n",
+			nFd,
 			sizeof(TIDNegot) + ptIDNegot->m_dwPayLoadLen,
 			nRecvData);
-		return ACL_ERROR_FAILED;
+		nErrorCode = ACL_ERROR_FAILED;
+		goto ErrorRet;
 	}
 	switch (ptIDNegot->m_msgIDNegot)
 	{
@@ -1233,31 +1254,35 @@ s32 newConn3ACheck(H_ACL_SOCKET nFd, ESELECT eEvent, void* pContext)
 		T3ACheckAck * pt3ACheckAck = (T3ACheckAck *)ptIDNegot->m_arrPayLoad;
 		if (sizeof(T3ACheckAck) != ptIDNegot->m_dwPayLoadLen)
 		{
-			ACL_DEBUG(E_MOD_NETWORK, E_TYPE_ERROR, "[newConn3ACheck]-[Step 0.1, 3A Check, Server Side] MSG_3A_CHECK_ACK with wrong payload, Payload Size: [Should %d, Real: %d]\n",
+			ACL_DEBUG(E_MOD_NETWORK, E_TYPE_ERROR, "[newConn3ACheck]-[Step 0.1, 3A Check, Server Side] Socket: [0X%X], MSG_3A_CHECK_ACK with wrong payload, Payload Size: [Should %d, Real: %d]\n",
+				nFd,
 				sizeof(T3ACheckAck),
 				ptIDNegot->m_dwPayLoadLen);
-			return ACL_ERROR_INVALID;
+			nErrorCode = ACL_ERROR_INVALID;
+			goto ErrorRet;
 		}
 		if ((IsBigEndian() && pt3ACheckAck->m_dwIsBigEden) ||
 			(!IsBigEndian() && !pt3ACheckAck->m_dwIsBigEden))
 		{
 			//双方都是大端口，或者双方都是小端口
 			//大小端匹配,原样返回
-			ACL_DEBUG(E_MOD_NETWORK, E_TYPE_NOTIF, "[newConn3ACheck][Step 0.1, 3A Check, Server Side] Server And Client Both [%s] Endian\n", pt3ACheckAck->m_dwIsBigEden ? "Big" : "Small");
+			ACL_DEBUG(E_MOD_NETWORK, E_TYPE_NOTIF, "[newConn3ACheck][Step 0.1, 3A Check, Server Side] Socket: [0X%X], Server And Client Both [%s] Endian\n",nFd, pt3ACheckAck->m_dwIsBigEden ? "Big" : "Small");
 
 			//解密幻数
 			u32 dwMagicData = (u32)nFd;
 			if (pt3ACheckAck->m_MagicNum != dwMagicData)
 			{
-				ACL_DEBUG(E_MOD_NETWORK, E_TYPE_NOTIF, "[newConn3ACheck][Step 0.1, 3A Check, Server Side] Magic Num is Not match, [MagicNum:0X%X, Should:0X%X]\n",
+				ACL_DEBUG(E_MOD_NETWORK, E_TYPE_NOTIF, "[newConn3ACheck][Step 0.1, 3A Check, Server Side] Socket: [0X%X], Magic Num is Not match, [MagicNum:0X%X, Should:0X%X]\n",
+					nFd,
 					pt3ACheckAck->m_MagicNum,
 					dwMagicData);
-				return ACL_ERROR_FAILED;
+				nErrorCode = ACL_ERROR_FAILED;
+				goto ErrorRet;
 			}
 			//走到这里，Magic验证，大小端验证都通过了，开始进行SSID协商
 			//Step 1
 			dwSuggestID = aclSessionIDGenerate();
-			ACL_DEBUG(E_MOD_NETWORK, E_TYPE_NOTIF, "[newConn3ACheck]-[Step 1,Try Neg, Server Side] Get Server SuggestID: [%d]\n", dwSuggestID);
+			ACL_DEBUG(E_MOD_NETWORK, E_TYPE_KEY, "[newConn3ACheck]-[Step 1,Try Neg, Server Side] Socket: [0X%X], Get Server SuggestID: [%d]\n", nFd, dwSuggestID);
 			memset(szRcvSnd3AData, 0, sizeof(szRcvSnd3AData));
 			ptIDNegot->m_msgIDNegot = MSG_TRY_NEGOT;
 			ptIDNegot->m_dwSessionID = dwSuggestID;
@@ -1266,16 +1291,18 @@ s32 newConn3ACheck(H_ACL_SOCKET nFd, ESELECT eEvent, void* pContext)
 			nRet = aclTcpSend(nFd, szRcvSnd3AData, sizeof(TIDNegot));
 			if (nRet < 0)
 			{
-				ACL_DEBUG(E_MOD_NETWORK, E_TYPE_ERROR, "[newConn3ACheck]-[Step 1,Try Neg, Server Side] send Negotiation Message Failed: [%d]\n", nRet);
-				return ACL_ERROR_FAILED;
+				ACL_DEBUG(E_MOD_NETWORK, E_TYPE_ERROR, "[newConn3ACheck]-[Step 1,Try Neg, Server Side] Socket: [0X%X], Send Negotiation Message Failed: [%d]\n", nFd, nRet);
+				nErrorCode = ACL_ERROR_FAILED;
+				goto ErrorRet;
 			}
-			ACL_DEBUG(E_MOD_NETWORK, E_TYPE_NOTIF, "[newConn3ACheck]-[Step 1,Try Neg, Server Side] Send SuggestID: [%d]\n", dwSuggestID);
+			ACL_DEBUG(E_MOD_NETWORK, E_TYPE_KEY, "[newConn3ACheck]-[Step 1,Try Neg, Server Side] Socket: [0X%X], Send SuggestID: [%d]\n", nFd, dwSuggestID);
 			return ACL_ERROR_NOERROR;
 		}
 		else
 		{
-			ACL_DEBUG(E_MOD_NETWORK, E_TYPE_ERROR, "[newConn3ACheck][Step 0.1, 3A Check, Server Side] Endian Mismatch, Client: [%s Endian], Server: [%s Endian]:\n", pt3ACheckAck->m_dwIsBigEden ? "Big" : "Small", IsBigEndian() ? "Big" : "Small");
-			return ACL_ERROR_NOTSUP;
+			ACL_DEBUG(E_MOD_NETWORK, E_TYPE_ERROR, "[newConn3ACheck]-[Step 0.1, 3A Check, Server Side] Socket: [0X%X], Endian Mismatch, Client: [%s Endian], Server: [%s Endian]:\n", nFd, pt3ACheckAck->m_dwIsBigEden ? "Big" : "Small", IsBigEndian() ? "Big" : "Small");
+			nErrorCode = ACL_ERROR_NOTSUP;
+			goto ErrorRet;
 		}
 		break;
 	}
@@ -1283,7 +1310,7 @@ s32 newConn3ACheck(H_ACL_SOCKET nFd, ESELECT eEvent, void* pContext)
 	{
 		//Step3.2
 		dwSuggestID = aclSSIDGenByStartPos(ptIDNegot->m_dwSessionID);
-		ACL_DEBUG(E_MOD_NETWORK, E_TYPE_NOTIF, "[newConn3ACheck]-[Step 3.2, Try Neg, Server Side] Server get SuggestID: [%d]\n", dwSuggestID);
+		ACL_DEBUG(E_MOD_NETWORK, E_TYPE_KEY, "[newConn3ACheck]-[Step 3.2, Try Neg, Server Side] Socket: [0X%X], Server get SuggestID: [%d]\n", nFd, dwSuggestID);
 
 		//Step 3.2.1
 		//会话ID确认，协商结束
@@ -1296,27 +1323,30 @@ s32 newConn3ACheck(H_ACL_SOCKET nFd, ESELECT eEvent, void* pContext)
 			nRet = aclTcpSend(nFd, szRcvSnd3AData, sizeof(TIDNegot));
 			if (nRet < 0)
 			{
-				ACL_DEBUG(E_MOD_NETWORK, E_TYPE_ERROR, "[newConn3ACheck]-[Step 3.1.1, Neg Confirm, Server Side] Server send Negotiation Confirm Message Failed: [%d]\n", nRet);
-				return ACL_ERROR_FAILED;
+				ACL_DEBUG(E_MOD_NETWORK, E_TYPE_ERROR, "[newConn3ACheck]-[Step 3.1.1, Neg Confirm, Server Side] Socket: [0X%X], Server send Negotiation Confirm Message Failed: [%d]\n",nFd, nRet);
+				nErrorCode = ACL_ERROR_FAILED;
+				goto ErrorRet;
 			}
 			//3.1.1任务结束，Client协商完成，流程结束
-			ACL_DEBUG(E_MOD_NETWORK, E_TYPE_NOTIF, "[newConn3ACheck]-[Step 2.1, Neg Confirm, Client Side] Negotiation confirm, SSID: [%d]", dwSuggestID);
+			ACL_DEBUG(E_MOD_NETWORK, E_TYPE_KEY, "[newConn3ACheck]-[Step 3.2.1, Neg Confirm, Client Side] Socket: [0X%X], Negotiation confirm, SSID: [%d]\n",nFd, dwSuggestID);
 			break;
 		}
 
 		//Step 3.1.2协商再次失败，转到 Step 1
 		memset(szRcvSnd3AData, 0, sizeof(szRcvSnd3AData));
 		ptIDNegot->m_msgIDNegot = MSG_TRY_NEGOT;
+		dwSuggestID = aclSessionIDGenerate();//重新生成最新ID进行协商
 		ptIDNegot->m_dwSessionID = dwSuggestID;
 		ptIDNegot->m_dwPayLoadLen = 0;
 
 		nRet = aclTcpSend(nFd, szRcvSnd3AData, sizeof(TIDNegot));
 		if (nRet < 0)
 		{
-			ACL_DEBUG(E_MOD_NETWORK, E_TYPE_ERROR, "[newConn3ACheck]-[Step 3.1.2-> Step 1,Try Neg, Server Side] send Negotiation Message Failed: [%d]\n", nRet);
-			return ACL_ERROR_FAILED;
+			ACL_DEBUG(E_MOD_NETWORK, E_TYPE_ERROR, "[newConn3ACheck]-[Step 3.2.2-> Step 1,Try Neg, Server Side] Socket: [0X%X], send Negotiation Message Failed: [%d]\n",nFd, nRet);
+			nErrorCode = ACL_ERROR_FAILED;
+			goto ErrorRet;
 		}
-		ACL_DEBUG(E_MOD_NETWORK, E_TYPE_NOTIF, "[newConn3ACheck]-[Step 3.1.2-> Step 1, Try Neg, Server Side] Get Server SuggestID: [%d]", dwSuggestID);
+		ACL_DEBUG(E_MOD_NETWORK, E_TYPE_KEY, "[newConn3ACheck]-[Step 3.2.2-> Step 1, Try Neg, Server Side] Socket: [0X%X], Get Server SuggestID: [%d]\n",nFd, dwSuggestID);
 		return ACL_ERROR_NOERROR;
 		//因为客户端一定会通过ID生成函数，因此可以保证节点数组中的值必定小于此ID
 		break;
@@ -1326,33 +1356,44 @@ s32 newConn3ACheck(H_ACL_SOCKET nFd, ESELECT eEvent, void* pContext)
 		//Step 3.x
 		//接收到客户端的协商确认信令，直接返回
 		dwSuggestID = ptIDNegot->m_dwSessionID;
-		ACL_DEBUG(E_MOD_NETWORK, E_TYPE_NOTIF, "[aclTCPConnect]-[Step 3.x, Neg Confirm, Server Side] Receive CID: [%d] as SSID", dwSuggestID);
+		ACL_DEBUG(E_MOD_NETWORK, E_TYPE_KEY, "[aclTCPConnect]-[Step 3.x, Neg Confirm, Server Side] Socket: [0X%X], Receive CID: [%d] as SSID\n",
+			nFd,
+			dwSuggestID);
 		break;
 	}
 	default:
-		ACL_DEBUG(E_MOD_NETWORK, E_TYPE_NOTIF, "[aclTCPConnect]-[Step x.x, Server Side] Unsupported Msg: [%d]", ptIDNegot->m_msgIDNegot);
-		return ACL_ERROR_FAILED;
+		ACL_DEBUG(E_MOD_NETWORK, E_TYPE_ERROR, "[aclTCPConnect]-[Step x.x, Server Side] Socket: [0X%X], Unsupported Msg: [%d]\n",
+			nFd,
+			ptIDNegot->m_msgIDNegot);
+		nErrorCode = ACL_ERROR_FAILED;
+		goto ErrorRet;
 		break;
 	}
 	
-	ACL_DEBUG(E_MOD_NETWORK, E_TYPE_NOTIF, "[newConn3ACheck] socket: [%d] 3A handshake success, confirm SSID: [%d]\n", nFd, dwSuggestID);
+	ACL_DEBUG(E_MOD_NETWORK, E_TYPE_KEY, "[newConn3ACheck] Socket: [0X%X] 3A handshake success, confirm SSID: [%d]\n", nFd, dwSuggestID);
 	TNodeInfo tNodeInfo;
 	tNodeInfo.m_dwNodeSSID = dwSuggestID;
 	tNodeInfo.m_eNodeType = E_NT_SERVER;
 
-	nRet = aclRemoveSelectLoop(g_tGlbParam.m_hSockMng3A,nFd, false,false);
-	ACL_DEBUG(E_MOD_NETWORK, E_TYPE_NOTIF, "[newConn3ACheck] Remove socket: [%d] From 3ALoop,  Ret: [%d]\n", nFd, nRet);
+	nRet = aclRemoveSelectLoop(getSock3AManger(),nFd, false,false);
+	ACL_DEBUG(E_MOD_NETWORK, E_TYPE_KEY, "[newConn3ACheck] Remove Socket: [0X%X], From 3ALoop,  Ret: [%d]\n", nFd, nRet);
 
-	nRet = aclInsertSelectLoop(g_tGlbParam.m_hSockMngData, nFd, aclNewMsgProcess, ESELECT_READ, tNodeInfo, pContext);
-	ACL_DEBUG(E_MOD_NETWORK, E_TYPE_NOTIF, "[newConn3ACheck] Insert socket: [%d] to DataLoop,  Ret: [%d]\n", nFd, nRet);
+	nRet = aclInsertSelectLoop(getSockDataManger(), nFd, aclNewMsgProcess, ESELECT_READ, tNodeInfo, pContext);
+	ACL_DEBUG(E_MOD_NETWORK, E_TYPE_KEY, "[newConn3ACheck] Insert Socket: [0X%X] to DataLoop,  Ret: [%d]\n", nFd, nRet);
 
 	if (nRet < ACL_ERROR_NOERROR)//insert failed, maybe node space is all busy
 	{
-		ACL_DEBUG(E_MOD_MSG,E_TYPE_ERROR, "[newConn3ACheck] insert 3A passed session failed, EC: [%d]\n", nRet);
+		ACL_DEBUG(E_MOD_MSG,E_TYPE_ERROR, "[newConn3ACheck] Socket: [0X%X], insert 3A passed session failed, EC: [%d]\n", nFd, nRet);
 		return nRet;
 	}
-
 	return ACL_ERROR_NOERROR;
+
+	//错误处理
+ErrorRet:
+	nRet = aclRemoveSelectLoop(getSock3AManger(), nFd, true, false);
+	ACL_DEBUG(E_MOD_NETWORK, E_TYPE_ERROR, "[newConn3ACheck]-[Step x, Server Side, Exception] Remove Socket: [%X], Return(Socket Pos): [%d]\n",
+		nFd, nRet);
+	return nErrorCode;
 }
 
 
@@ -1378,10 +1419,10 @@ s32 newConnectProc(H_ACL_SOCKET nFd, ESELECT eEvent, void* pContext)
 	u16 wConnPort = 0;
 	int nSendDataLen = 0;
 	ACL_DEBUG(E_MOD_NETWORK, E_TYPE_NOTIF,"[newConnectProc] coming into new Connect Proc\n");
-	if (ESELECT_READ != eEvent)
-	{
-		return ACL_ERROR_INVALID;
-	}
+// 	if (ESELECT_CONN & eEvent )
+// 	{
+// 		return ACL_ERROR_INVALID;
+// 	}
 	//new connect 
     TPeerClientInfo *tpPeerCliInfo = (TPeerClientInfo*)aclMallocClr(sizeof(TPeerClientInfo));
 	hConnSock = aclTcpAccept(nFd, &dwConnIP, &wConnPort);
@@ -1417,14 +1458,14 @@ s32 newConnectProc(H_ACL_SOCKET nFd, ESELECT eEvent, void* pContext)
 	TNodeInfo tNodeInfo;
 	tNodeInfo.m_dwNodeSSID = 0;
 	tNodeInfo.m_eNodeType = E_NT_LISTEN;
-	aclInsertSelectLoop(g_tGlbParam.m_hSockMng3A, hConnSock, newConn3ACheck, ESELECT_READ, tNodeInfo, tpPeerCliInfo);
+	aclInsertSelectLoopUnsafe(g_tGlbParam.m_hSockMng3A, hConnSock, newConn3ACheck, ESELECT_READ, tNodeInfo, tpPeerCliInfo);
 
 
 	//发送3ACheck请求，同时检测大小端信息
 	TIDNegot * ptIDNegot = (TIDNegot *)sz3ABuf;
 	memset(sz3ABuf, 0, sizeof(sz3ABuf));
 	ptIDNegot->m_msgIDNegot = MSG_3A_CHECK_REQ;
-	ptIDNegot->m_dwSessionID = 0;
+	ptIDNegot->m_dwSessionID = 0;//aclSessionIDGenerate();
 	ptIDNegot->m_dwPayLoadLen = sizeof(T3ACheckReq);
 	T3ACheckReq * pt3ACheckReq = (T3ACheckReq *)ptIDNegot->m_arrPayLoad;
 
@@ -1438,8 +1479,9 @@ s32 newConnectProc(H_ACL_SOCKET nFd, ESELECT eEvent, void* pContext)
 	if (nRet < 0)
 	{
 		ACL_DEBUG(E_MOD_NETWORK, E_TYPE_ERROR, "[aclTCPConnect][server side] send 3A data error EC:%d\n", nRet);
+		aclRemoveSelectLoop(getSock3AManger(), nFd, true, false);
 	}
-	ACL_DEBUG(E_MOD_NETWORK, E_TYPE_NOTIF, "[aclTCPConnect][server side] send 3A data Magic Num: [0X%X]Enc Data:[0X%X]\n", 
+	ACL_DEBUG(E_MOD_NETWORK, E_TYPE_KEY, "[aclTCPConnect][server side] send 3A data Magic Num: [0X%X]Enc Data:[0X%X]\n",
 		hConnSock, pt3ACheckReq->m_MagicNum);
 	
 	return ACL_ERROR_NOERROR;
@@ -1486,7 +1528,7 @@ ACL_API int aclCreateTcpNode(u16 wPort)
 
 	//由于3A select线程有定时关闭socket监听的功能，因此会将创建的Node放到数据收发线程中
 	//当收到新的连接后再将返回的socket放到3A线程进行限制时间的验证
-	nErrCode = aclCreateNode(g_tGlbParam.m_hSockMngData,"0.0.0.0",wPort,newConnectProc, NULL);
+	nErrCode = aclCreateNode(g_tGlbParam.m_hSockMng3A,"0.0.0.0",wPort,newConnectProc, NULL);
 	if (ACL_ERROR_NOERROR != nErrCode)
 	{
 		ACL_DEBUG(E_MOD_NETWORK,E_TYPE_ERROR,"[newConnectProc] create tcp node failed EC:%d\n",nErrCode);
@@ -1913,6 +1955,7 @@ ACL_API u32 aclSessionIDGenerate()
 	{
 		dwID = ++g_tGlbParam.m_dwIDGenerate;
 	}
+	ACL_DEBUG(E_MOD_NETWORK, E_TYPE_KEY, "[aclSessionIDGenerate] SSID Generate New ID: [%d]\n", dwID);
     unlockLock(g_tGlbParam.m_hAclIDLock);
     return dwID;
 }
@@ -1944,6 +1987,7 @@ ACL_API u32 aclSSIDGenByStartPos(u32 dwStartID)
 		g_tGlbParam.m_dwIDGenerate = dwStartID;
 		dwID = dwStartID;
 	}
+	ACL_DEBUG(E_MOD_NETWORK, E_TYPE_KEY, "[aclSSIDGenByStartPos] SSID New ID: [%d]\n", dwID);
 	//走到这里表示为dwID >=dwStartID
 	//此时都需要按照dwID作为生成的ID
 	unlockLock(g_tGlbParam.m_hAclIDLock);

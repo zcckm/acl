@@ -17,9 +17,10 @@
 #include <string>
 typedef enum 
 {
-    MSG_3A            = 1,  //3A mess
-    MSG_QUTE          = 2,//quit message
-    MSG_HBMSG_REQ     = 3,//HB req
+	MSG_EMPTY         = 0, //Empty Msg
+    MSG_3A            = 1, //3A msg
+    MSG_QUTE          = 2, //quit message
+    MSG_HBMSG_REQ     = 3, //HB req
     MSG_HB_MSG,
     MSG_HB_MSG_ACK,
 	MSG_DISCONNECT_NTF,
@@ -28,6 +29,21 @@ typedef enum
 	MSG_TRY_NEGOT,
 	MSG_NEGOT_CONFIM
 }E_ACLSysMsg;
+
+static std::map<u16, std::string> mapSYSMsgTypePrint =
+{
+	{ MSG_EMPTY, "MSG_EMPTY" },
+	{ MSG_3A, "MSG_3A" },
+	{ MSG_QUTE, "MSG_QUTE" },
+	{ MSG_HBMSG_REQ, "MSG_HBMSG_REQ" },
+	{ MSG_HB_MSG, "MSG_HB_MSG" },
+	{ MSG_HB_MSG_ACK, "MSG_HB_MSG_ACK" },
+	{ MSG_DISCONNECT_NTF, "MSG_DISCONNECT_NTF" },
+	{ MSG_3A_CHECK_REQ, "MSG_3A_CHECK_REQ" },
+	{ MSG_3A_CHECK_ACK, "MSG_3A_CHECK_ACK" },
+	{ MSG_TRY_NEGOT, "MSG_TRY_NEGOT" },
+	{ MSG_NEGOT_CONFIM, "MSG_NEGOT_CONFIM" }
+};
 
 #define FLEX_LEN 0
 typedef struct tagIDNegot

@@ -57,6 +57,7 @@ typedef enum
 
 ACL_API int aclMsgPush(u32 dwSrcAppInstAddr,u32 dwDstAppInstAddr,u32 dwNodeID,u16 wMsgType,void * pContent,u32 dwContentLen,PUSH_MSG_TYPE eMsgMask);
 ACL_API HSockManage getSockDataManger();
+ACL_API HSockManage getSock3AManger();
 ACL_API u32 aclSessionIDGenerate();
 
 //轻量级加解密，用于进行3A验证

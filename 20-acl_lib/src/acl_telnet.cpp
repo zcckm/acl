@@ -59,8 +59,8 @@ const char  * p_EDEBUG_MODULE[] =
     "E_MOD_ALL" //ËùÓÐÄ£¿é
 };
 
-int g_DebugType = E_TYPE_NOTIF;
-int g_DebugMod = E_MOD_MANAGE;
+int g_DebugType = E_TYPE_KEY;
+int g_DebugMod = E_MOD_ALL;
 
 BOOL g_bDebugInfoWriteInFile = FALSE;
 
@@ -196,7 +196,7 @@ ACL_API int ACL_DEBUG(int MODULE, int TYPE,const char * param,...)
         {
             if (NULL == fpLog)
             {
-                fpLog = fopen("log.log","ab");
+                fpLog = fopen("log.log","a");
             }
             fprintf(fpLog,"%s",s);
         }
@@ -744,25 +744,24 @@ s32 newTelMsgProcess(H_ACL_SOCKET nFd, ESELECT eEvent, void* pContext)
 	u32 dwParseValue = 0;
 	int nRealNum = 0;
 	CHECK_NULL_RET_INVALID(ptAclTel);
-	if (ESELECT_READ != eEvent)
-	{
-        ACL_DEBUG(E_MOD_TELNET, E_TYPE_WARNNING, "[newTelMsgProcess] new message but not read???\n");
-		return ACL_ERROR_INVALID;
-	}
+// 	if (ESELECT_READ != eEvent)
+// 	{
+//         ACL_DEBUG(E_MOD_TELNET, E_TYPE_WARNNING, "[newTelMsgProcess] new message but not read???\n");
+// 		return ACL_ERROR_INVALID;
+// 	}
 
 	nRcvSize = aclTcpRecv(nFd, szRcvData, MAX_RECV_PACKET_SIZE);
 	if (0 >= nRcvSize)//attempt to disconnect current connect
 	{
         ACL_DEBUG(E_MOD_TELNET, E_TYPE_WARNNING, "[newTelMsgProcess] telnet is disconnected or error Happen, Recv Ret: [%d]\n", nRcvSize);
 		printf("remove socket %d\n", nFd);
-		aclRemoveSelectLoop(getSockDataManger(), nFd,true,false);
+		aclRemoveSelectLoop(getSock3AManger(), nFd,true,false);
 		telResetParam((HAclTel)ptAclTel);
 		return ACL_ERROR_NOERROR;
 	}
 
 
 	nRealNum = parseInput(szRcvData, nRcvSize, &dwParseValue);
-
 	//avoid array overflow
 	if (nRealNum + ptAclTel->nPos < ACL_TEL_CMD_LEN)
 	{
@@ -801,7 +800,7 @@ s32 newTelMsgProcess(H_ACL_SOCKET nFd, ESELECT eEvent, void* pContext)
 		if (0 == strcmp(ptAclTel->m_szCmd, "bye"))
 		{
             ACL_DEBUG(E_MOD_TELNET, E_TYPE_DEBUG, "[newTelMsgProcess] recv CMD:bye SOCK:%X\n",nFd);
-			aclRemoveSelectLoop(getSockDataManger() ,nFd,true,false);
+			aclRemoveSelectLoop(getSock3AManger() ,nFd,true,false);
 			telResetParam((HAclTel)ptAclTel);
 			return 0;
 		}
@@ -878,10 +877,10 @@ s32 newTelConnProc(H_ACL_SOCKET nFd, ESELECT eEvent, void* pContext)
 	u16 wConnPort = 0;
 	int nSendDataLen = 0;
     ACL_DEBUG(E_MOD_TELNET, E_TYPE_DEBUG,"[newTelConnProc] new telnet connectX\n");
-	if (ESELECT_READ != eEvent)
-	{
-		return ACL_ERROR_INVALID;
-	}
+// 	if (ESELECT_READ != eEvent)
+// 	{
+// 		return ACL_ERROR_INVALID;
+// 	}
 	//new connect 
 	hConnSock = aclTcpAccept(nFd, &dwConnIP, &wConnPort);
 
@@ -906,7 +905,7 @@ s32 newTelConnProc(H_ACL_SOCKET nFd, ESELECT eEvent, void* pContext)
 	if (INVALID_SOCKET != g_telFd)//already connected
 	{
         //disconnect old telnet connect
-		aclRemoveSelectLoop(getSockDataManger(), g_telFd,true,false);
+		aclRemoveSelectLoop(getSock3AManger(), g_telFd,true,false);
         //aclCloseSocket(g_telFd);
 		
 	}
@@ -921,7 +920,7 @@ s32 newTelConnProc(H_ACL_SOCKET nFd, ESELECT eEvent, void* pContext)
 	memset(&tNodeInfo, 0, sizeof(tNodeInfo));
 	tNodeInfo.m_dwNodeSSID = 0;
 	tNodeInfo.m_eNodeType = E_NT_LISTEN;
-    aclInsertSelectLoopUnsafe(getSockDataManger(), hConnSock, newTelMsgProcess, ESELECT_READ, tNodeInfo, pContext);
+    aclInsertSelectLoopUnsafe(getSock3AManger(), hConnSock, newTelMsgProcess, ESELECT_CONN, tNodeInfo, pContext);
 	//	getTelnetPrompt(wConnPort);
 	ACL_DEBUG(E_MOD_TELNET, E_TYPE_DEBUG, "[newTelConnProc]  new telnet connected and Port %d\n",wConnPort);
 	aclTcpSend(hConnSock, szMarkBuf, nSendDataLen);
@@ -993,7 +992,7 @@ ACL_API int aclTelnetInit( BOOL bTelnet, u16 wPort )
         ACL_DEBUG(E_MOD_TELNET, E_TYPE_ERROR, "[aclTelnetInit] get idle Telnet failed\n");
         return ACL_ERROR_INIT;
     }
-    nErrCode = aclCreateNode(getSockDataManger(), "0.0.0.0", wPort, newTelConnProc, tAclTel);
+    nErrCode = aclCreateNode(getSock3AManger(), "0.0.0.0", wPort, newTelConnProc, tAclTel);
     ACL_DEBUG(E_MOD_TELNET, E_TYPE_NOTIF, "[aclTelnetInit]aclTelnetInit port %d\n",wPort);
 
 	//inner command reg:

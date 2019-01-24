@@ -274,7 +274,7 @@ int insertAclMsg(PTMSG_QUEUE ptAclMsgQueue,TAclMessage * ptAclMsg)
 
     case ACL_QUE_DEEP_COPYMODE:
         {
-            ACL_DEBUG(E_MOD_MSG, E_TYPE_NOTIF, "[insertAclMsg] insert message mode:CopyMode\n");
+            ACL_DEBUG(E_MOD_MSG, E_TYPE_DEBUG, "[insertAclMsg] insert message mode:CopyMode\n");
             ptAclQueMsg = (TAclMessage *)ptAclMsgQueue->LAEP->pContent;
             memcpy(ptAclQueMsg,ptAclMsg,sizeof(TAclMessage));
             if (NULL != ptAclQueMsg->m_pContent)
