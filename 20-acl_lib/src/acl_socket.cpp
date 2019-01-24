@@ -1775,3 +1775,34 @@ ACL_API int aclInsertPBMAndSend(HSockManage hSockMng, H_ACL_SOCKET hSock,void * 
 	//unlockLock(ptSockManage->m_hLock);
 	return ACL_ERROR_NOERROR;
 }
+
+
+/*====================================================================
+函数名：aclInsertPBMAndSend
+功能：返回数据包管理器当前缓冲数据的大小
+====================================================================*/
+ACL_API int aclGetPBMLeftDataSize(HSockManage hSockMng, H_ACL_SOCKET hSock, int & nLeftDataLen)
+{
+	int nRet = ACL_ERROR_NOERROR;
+	int nCheckSize = 0;
+	TSockManage * ptSockManage = NULL;
+	TSockNode * ptNewNode = NULL;
+	ptSockManage = (TSockManage *)hSockMng;
+	CHECK_NULL_RET_INVALID(ptSockManage);
+	if (INVALID_SOCKET == hSock)
+	{
+		return ACL_ERROR_INVALID;
+	}
+	//lockLock(ptSockManage->m_hLock);
+	nRet = aclFindSocketNode(hSockMng, hSock, &ptNewNode);
+	if (ACL_ERROR_NOERROR != nRet || NULL == ptNewNode)
+	{
+		//寻找SocketNode出现错误
+		ACL_DEBUG(E_MOD_MSG, E_TYPE_ERROR, "[aclInsertPBMAndSend] cannot find target socket node SOCK[%d]\n", hSock);
+		//unlockLock(ptSockManage->m_hLock);
+		return ACL_ERROR_FAILED;
+	}
+
+	nLeftDataLen = ptNewNode->tPktBufMng.dwCurePBMSize;
+	return ACL_ERROR_NOERROR;
+}

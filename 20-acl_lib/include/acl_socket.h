@@ -61,6 +61,7 @@ ACL_API int aclInsertSelectLoop(HSockManage hSockMng, H_ACL_SOCKET hSock, FEvSel
 ACL_API int aclInsertSelectLoopUnsafe(HSockManage hSockMng, H_ACL_SOCKET hSock, FEvSelect pfCB, ESELECT eSelType, TNodeInfo tNodeInfo, void * pContext);
 ACL_API int aclRemoveSelectLoop(HSockManage hSockMng, H_ACL_SOCKET hSock, bool bCloseSock, bool bThreadSafe);
 ACL_API int aclInsertPBMAndSend(HSockManage hSockMng, H_ACL_SOCKET hSock,void * data, int nDataLen);
+ACL_API int aclGetPBMLeftDataSize(HSockManage hSockMng, H_ACL_SOCKET hSock, int & nLeftDataLen);
 
 ACL_API H_ACL_SOCKET aclCreateSocket();
 ACL_API H_ACL_SOCKET aclCreateSockNode(const char * pIPAddr,u16 wPort);

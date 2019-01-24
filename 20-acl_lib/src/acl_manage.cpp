@@ -1122,7 +1122,29 @@ s32 aclNewMsgProcess(H_ACL_SOCKET nFd, ESELECT eEvent, void* pContext)
 		return ACL_ERROR_NOERROR;
 	}
 	ACL_DEBUG(E_MOD_MSG,E_TYPE_DEBUG,"[aclNewMsgProcess] nRcvSize:%d\n",nRcvSize);
-	nRet = aclCheckPack(szRcvData,nRcvSize);
+
+	//确认缓冲内是否有数据，如果有数据，则不再进行包检查，直接插入包缓冲
+	int nLeftLen = 0;
+
+	nRet = aclGetPBMLeftDataSize(hSockmng, nFd, nLeftLen);
+	if (nRet != ACL_ERROR_NOERROR)
+	{
+		ACL_DEBUG(E_MOD_MSG, E_TYPE_ERROR, "[aclNewMsgProcess] get Socket :[0X%X] Buffer DataLen Failed\n", nFd);
+		return ACL_ERROR_FAILED;
+	}
+	if (nLeftLen > 0)
+	{
+		//还有数据没有处理，因此直接扔到
+		nRet = ACL_ERROR_EMPTY;
+		ACL_DEBUG(E_MOD_MSG, E_TYPE_ERROR, "[aclNewMsgProcess] Socket: [0X%X], Buffer is not empty, Left Len :[%d], skip CheckPack\n", nFd, nLeftLen);
+	}
+	else
+	{
+		nRet = aclCheckPack(szRcvData, nRcvSize);
+	}
+	
+
+	
 	//更正逻辑，如果返回无错误，表示包完整，直接进行，否则表示出现黏包，包不全
 	if (ACL_ERROR_NOERROR == nRet)
 	{
