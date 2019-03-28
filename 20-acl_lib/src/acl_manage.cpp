@@ -1068,7 +1068,7 @@ int aclCheckPack(char * pPackData, u16 wPackLen)
 		ACL_DEBUG(E_MOD_NETWORK, E_TYPE_WARNNING, "[aclCheckPack] Size is not enough PacketLen: [%d], but BaseHead:[%d]\n", 
 			wPackLen,
 			sizeof(TAclMessage));
-		return ACL_ERROR_INVALID;
+		return ACL_ERROR_FAILED;
 	}
 
 	ptAclMsg = (TAclMessage *)pPackData;
@@ -1136,11 +1136,18 @@ s32 aclNewMsgProcess(H_ACL_SOCKET nFd, ESELECT eEvent, void* pContext)
 	{
 		//还有数据没有处理，因此直接扔到
 		nRet = ACL_ERROR_EMPTY;
-		ACL_DEBUG(E_MOD_MSG, E_TYPE_ERROR, "[aclNewMsgProcess] Socket: [0X%X], Buffer is not empty, Left Len :[%d], skip CheckPack\n", nFd, nLeftLen);
+		ACL_DEBUG(E_MOD_MSG, E_TYPE_NOTIF, "[aclNewMsgProcess] Socket: [0X%X], Buffer is not empty, Left Len :[%d], skip CheckPack\n", nFd, nLeftLen);
 	}
 	else
 	{
 		nRet = aclCheckPack(szRcvData, nRcvSize);
+		//走到这里表示缓冲区已经为空了，如果此时检查包仍旧不正常，表示出现严重问题,
+		//此包直接丢弃，直到正常ACL包头作为开头的数据才会继续处理
+		if (ACL_ERROR_INVALID == nRet)
+		{
+			ACL_DEBUG(E_MOD_MSG, E_TYPE_NOTIF, "[aclNewMsgProcess] Socket: [0X%X], Buffer is empty, But RecvPacket Check Failed\n", nFd);
+			return ACL_ERROR_INVALID;
+		}
 	}
 	
 
@@ -1750,6 +1757,12 @@ ACL_API int aclMsgPush(u32 dwSrcAppInstAddr,u32 dwDstAppInstAddr,u32 dwNodeID,u1
 	tAclMsg.m_dwDstIID = dwDstAppInstAddr;
 	tAclMsg.m_dwSessionID = dwNodeID;
 	tAclMsg.m_wMsgType = wMsgType;
+	if (dwContentLen >= MAX_SEND_PACKET_SIZE)
+	{
+		//文件太大
+		ACL_DEBUG(E_MOD_NETWORK, E_TYPE_ERROR, "Single Packet is too large, Size: [%d], Please Split it\n", dwContentLen);
+		return ACL_ERROR_OVERFLOW;
+	}
 	if (NULL != pContent && 0 != dwContentLen)
 	{
 		tAclMsg.m_pContent = (u8 *)aclMallocClr(dwContentLen);

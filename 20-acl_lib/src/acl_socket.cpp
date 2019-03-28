@@ -1665,7 +1665,8 @@ ACL_API int aclCheckPktBufMngContent(TPktBufMng * ptPktMng, int * pnSize)
 	}
 	ptAclMsg = (TAclMessage *)ptPktMng->pPktBufMng;
 
-	if (ptAclMsg->m_dwPackLen <= ptPktMng->dwCurePBMSize)
+	//不仅包长度需要小于PBsize，同时还要保证不是巧合
+	if (ptAclMsg->m_dwPackLen <= ptPktMng->dwCurePBMSize && ptAclMsg->m_dwPackLen - sizeof(TAclMessage) == ptAclMsg->m_dwContentLen)
 	{
 		//发现完整包,可以输出
 		ACL_DEBUG(E_MOD_MSG, E_TYPE_NOTIF,"[aclCheckPktBufMngContent] find a new packet At Receive Cache,  BufData:[%d], PktLen: [%d], Splicing MsgType: [%d],\n", ptPktMng->dwCurePBMSize, ptAclMsg->m_dwPackLen, ptAclMsg->m_wMsgType);
@@ -1720,7 +1721,7 @@ ACL_API int aclInsertPBMAndSend(HSockManage hSockMng, H_ACL_SOCKET hSock,void * 
 	if ((nDataLen + ptNewNode->tPktBufMng.dwCurePBMSize) > INIT_PACKET_BUFFER_MANAGER)
 	{
 		//即将超过PBM上限，怎么办呢?根据当前实际需要的大小，分配更高的空间
-		void * pTmp = aclMallocClr(nDataLen + ptNewNode->tPktBufMng.dwCurePBMSize);
+		/*void * pTmp = aclMallocClr(nDataLen + ptNewNode->tPktBufMng.dwCurePBMSize);
 		if (NULL == pTmp)
 		{
 			//分配内存失败
@@ -1735,6 +1736,12 @@ ACL_API int aclInsertPBMAndSend(HSockManage hSockMng, H_ACL_SOCKET hSock,void * 
 		//设置新内存块
 		ptNewNode->tPktBufMng.pPktBufMng = pTmp;
 		ACL_DEBUG(E_MOD_MSG, E_TYPE_NOTIF, "[aclInsertPktBufMng] realloc large memory <%d byte>\n",nDataLen + ptNewNode->tPktBufMng.dwCurePBMSize);
+		*/
+		//对于即将超过上限的包，认定是TCP出现丢包，乱序等异常场景
+		//此时重置缓冲器
+		ptNewNode->tPktBufMng.dwCurePBMSize = 0;
+		memset(ptNewNode->tPktBufMng.pPktBufMng, 0, INIT_PACKET_BUFFER_MANAGER);
+		return ACL_ERROR_FAILED;
 	}
 	//插入新的包片段
 	memcpy((unsigned char *)ptNewNode->tPktBufMng.pPktBufMng + ptNewNode->tPktBufMng.dwCurePBMSize, data, nDataLen);
