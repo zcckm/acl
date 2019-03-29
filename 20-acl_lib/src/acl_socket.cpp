@@ -1669,7 +1669,7 @@ ACL_API int aclCheckPktBufMngContent(TPktBufMng * ptPktMng, int * pnSize)
 	if (ptAclMsg->m_dwPackLen <= ptPktMng->dwCurePBMSize && ptAclMsg->m_dwPackLen - sizeof(TAclMessage) == ptAclMsg->m_dwContentLen)
 	{
 		//发现完整包,可以输出
-		ACL_DEBUG(E_MOD_MSG, E_TYPE_NOTIF,"[aclCheckPktBufMngContent] find a new packet At Receive Cache,  BufData:[%d], PktLen: [%d], Splicing MsgType: [%d],\n", ptPktMng->dwCurePBMSize, ptAclMsg->m_dwPackLen, ptAclMsg->m_wMsgType);
+		ACL_DEBUG(E_MOD_MSG, E_TYPE_DEBUG,"[aclCheckPktBufMngContent] find a new packet At Receive Cache,  BufData:[%d], PktLen: [%d], Splicing MsgType: [%d],\n", ptPktMng->dwCurePBMSize, ptAclMsg->m_dwPackLen, ptAclMsg->m_wMsgType);
 		* pnSize = ptAclMsg->m_dwPackLen;
 		return ACL_ERROR_NOERROR;
 	}
