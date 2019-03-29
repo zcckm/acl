@@ -1072,13 +1072,35 @@ int aclCheckPack(char * pPackData, u16 wPackLen)
 	}
 
 	ptAclMsg = (TAclMessage *)pPackData;
-	if (ptAclMsg->m_dwPackLen != wPackLen || wPackLen - sizeof(TAclMessage) != ptAclMsg->m_dwContentLen)
+
+	//检查是否ACL包头开始, 如果不是则直接返回
+	if (ptAclMsg->m_dwContentLen != ptAclMsg->m_dwPackLen - sizeof(TAclMessage))
 	{
-        ACL_DEBUG(E_MOD_NETWORK,E_TYPE_WARNNING, "[aclCheckPack] LEN_INFO: Socket RecvSize:[%d], ACLMsgLen: [%d], ACLHeadLen:[%d], ContentLen: [%d]\n",
-            wPackLen, ptAclMsg->m_dwPackLen, sizeof(TAclMessage),ptAclMsg->m_dwContentLen);
+		//走到这里，表示此包不是正常ACL包开头
+		ACL_DEBUG(E_MOD_NETWORK, E_TYPE_WARNNING, 
+			"[aclCheckPack] It is not a packet start with ACL header, Parse ACLHead  PktLen: [%d], ContentLen: [%d]\n",
+			ptAclMsg->m_dwPackLen,
+			ptAclMsg->m_dwContentLen);
 		return ACL_ERROR_INVALID;
 	}
-	return ACL_ERROR_NOERROR;
+
+	//走到这里，说明是ACL包开头
+
+	//检查是否完整包，如果完整包，则直接返回
+	if (ptAclMsg->m_dwPackLen == wPackLen)
+	{
+		ACL_DEBUG(E_MOD_NETWORK, E_TYPE_RESERVED_1,
+			"[aclCheckPack] Receive a normal Packet  PktLen: [%d], ContentLen: [%d], MsgType:[%d], SID: [%d]\n",
+			ptAclMsg->m_dwPackLen,
+			ptAclMsg->m_dwContentLen,
+			ptAclMsg->m_wMsgType,
+			ptAclMsg->m_dwSessionID);
+		return ACL_ERROR_NOERROR;
+	}
+
+	//走到这里，表示虽然是ACL包开头，但是包不完整，或者粘包，需要借助缓冲器处理
+	return ACL_ERROR_FAILED;
+	
 }
 
 
@@ -1145,8 +1167,8 @@ s32 aclNewMsgProcess(H_ACL_SOCKET nFd, ESELECT eEvent, void* pContext)
 		//此包直接丢弃，直到正常ACL包头作为开头的数据才会继续处理
 		if (ACL_ERROR_INVALID == nRet)
 		{
-			ACL_DEBUG(E_MOD_MSG, E_TYPE_NOTIF, "[aclNewMsgProcess] Socket: [0X%X], Buffer is empty, But RecvPacket Check Failed\n", nFd);
-			return ACL_ERROR_INVALID;
+			ACL_DEBUG(E_MOD_MSG, E_TYPE_ERROR, "[aclNewMsgProcess] Socket: [0X%X], Buffer is Empty, But new Data not start At ACL Head\n", nFd);
+			return nRet;
 		}
 	}
 	
@@ -1184,8 +1206,8 @@ s32 aclNewMsgProcess(H_ACL_SOCKET nFd, ESELECT eEvent, void* pContext)
 			break;
 		case 0:
 			{
-				//无错误，不应该执行到这里
-				ACL_DEBUG(E_MOD_MSG,E_TYPE_ERROR,"[aclNewMsgProcess] no error here, odd\n");
+				//无错误，可能出现粘包或者半包等情况，而不是Socket异常
+				ACL_DEBUG(E_MOD_MSG, E_TYPE_RESERVED_0,"[aclNewMsgProcess] no error here, odd, maybe it's a splicing PKT\n");
 			}
 			break;
 		default:ACL_DEBUG(E_MOD_MSG,E_TYPE_ERROR,"[aclNewMsgProcess] unknown error id = %d\n",id); break;

@@ -1673,7 +1673,7 @@ ACL_API int aclCheckPktBufMngContent(TPktBufMng * ptPktMng, int * pnSize)
 		* pnSize = ptAclMsg->m_dwPackLen;
 		return ACL_ERROR_NOERROR;
 	}
-	ACL_DEBUG(E_MOD_MSG, E_TYPE_NOTIF,"[aclCheckPktBufMngContent] no new packet found yet firstPKT Len %d, PMB Size %d\n", ptAclMsg->m_dwPackLen, ptPktMng->dwCurePBMSize);
+	ACL_DEBUG(E_MOD_MSG, E_TYPE_NOTIF,"[aclCheckPktBufMngContent] no new packet found yet firstPKT Len: [%d], PMB Size: [%d]\n", ptAclMsg->m_dwPackLen, ptPktMng->dwCurePBMSize);
 
 	//目前还没有组成一包
 	return ACL_ERROR_FAILED;
