@@ -47,7 +47,7 @@ ACL_API void aclShowNode();
 ACL_API void aclShow3ASocket();
 
 //telnet
-ACL_API int aclTelnetInit(BOOL bTelnet, u16 wPort);
+ACL_API int aclTelnetInit(BOOL bTelnet, u16 wPort, const char * pListenIP = "0.0.0.0");
 ACL_API int aclTelnetExit();
 
 //manage
@@ -161,7 +161,7 @@ ACL_API int isAclInited()
 //注    意: 使用ACL前必须调用此函数用于初始化各个模块
 //          
 //=============================================================================
-ACL_API int aclInit( BOOL bTelnet, u16 wTelPort )
+ACL_API int aclInit(BOOL bTelnet, u16 wTelPort, const char * pTelnetBindIP)
 {
 	int nRet = 0;
 	HSockManage hSockMng_data = NULL;
@@ -182,6 +182,11 @@ ACL_API int aclInit( BOOL bTelnet, u16 wTelPort )
     {
         return ACL_ERROR_OVERFLOW;
     }
+
+	if (!pTelnetBindIP)
+	{
+		return ACL_ERROR_PARAM;
+	}
 	memset(g_tGlbParam.m_nAclAppIDMap, -1, sizeof(g_tGlbParam.m_nAclAppIDMap));
 	//this lock is for glb operate
     if(ACL_ERROR_NOERROR != aclCreateLock(&g_tGlbParam.m_hAclGlbLock, NULL))
@@ -234,7 +239,7 @@ ACL_API int aclInit( BOOL bTelnet, u16 wTelPort )
 	aclHBDetectInit(HB_DETECT_INST_NUM, cbHBDetect);
 	
 	//acl Telnet Init
-	nRet = aclTelnetInit(bTelnet, wTelPort);
+	nRet = aclTelnetInit(bTelnet, wTelPort, pTelnetBindIP);
     
 	if (ACL_ERROR_NOERROR != nRet)
 	{
@@ -1564,10 +1569,10 @@ u32 lightEncDec(u32 dwDEdata)
 //注    意: 此函数用于创建监听节点，将节点与 newConnectProc函数绑定用于
 //          处理所有的连接请求
 //=============================================================================
-ACL_API int aclCreateTcpNode(u16 wPort)
+ACL_API int aclCreateTcpNode(u16 wPort, const char * pBindIP)
 {
 	int nErrCode = 0;
-	if (0 == wPort)
+	if (0 == wPort || !pBindIP)
 	{
 		return ACL_ERROR_PARAM;
 	}
@@ -1579,7 +1584,7 @@ ACL_API int aclCreateTcpNode(u16 wPort)
 
 	//由于3A select线程有定时关闭socket监听的功能，因此会将创建的Node放到数据收发线程中
 	//当收到新的连接后再将返回的socket放到3A线程进行限制时间的验证
-	nErrCode = aclCreateNode(g_tGlbParam.m_hSockMng3A,"0.0.0.0",wPort,newConnectProc, NULL);
+	nErrCode = aclCreateNode(g_tGlbParam.m_hSockMng3A, pBindIP,wPort,newConnectProc, NULL);
 	if (ACL_ERROR_NOERROR != nErrCode)
 	{
 		ACL_DEBUG(E_MOD_NETWORK,E_TYPE_ERROR,"[newConnectProc] create tcp node failed EC:%d\n",nErrCode);

@@ -23,7 +23,7 @@
 
 typedef struct tagPeerClientInfo TPeerClientInfo;
 //++++++++begin manage Interface
-ACL_API int aclInit(BOOL bTelnet, u16 wTelPort);
+//ACL_API int aclInit(BOOL bTelnet, u16 wTelPort, const char * pTelnetBindIP = "0.0.0.0");
 ACL_API void aclQuit();
 
 ACL_API int aclCreateApp__(u16 nNewAppID,const s8 * pAppName,int nInstNum,int nInstStackSize, CBMsgEntry pfMsgCB);
@@ -36,7 +36,8 @@ ACL_API void aclSetInstStatus(HACLINST hAclInst,int nStatus);
 ACL_API INST_STATUS aclGetInstStatus(HACLINST hAclInst);
 ACL_API int aclGetInstID(HACLINST hAclInst);
 
-ACL_API int aclCreateTcpNode(u16 wPort);
+//对外放出
+//ACL_API int aclCreateTcpNode(u16 wPort, const char * pBindIP = "0.0.0.0");
 
 ACL_API int aclInstPost__(HACLINST hInst,u32 dwDstAppInstAddr,u32 dwNodeID,u16 wMsgType,u8 * pContent,u32 dwContentLen);
 ACL_API int aclPost__(u32 dwSrcAppInstAddr,u32 dwDstAppInstAddr,u32 dwNodeID,u16 wMsgType,u8 * pContent,u32 dwContentLen);

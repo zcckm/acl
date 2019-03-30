@@ -18,7 +18,7 @@
 #include "acl_task.h"
 #include "acl_manage.h"
 #include "acl_socket.h"
-
+#include "version.h"
 /* max argument number of input command */
 #define MAX_ARGC			10
 #define CMDLINE_LEN         32
@@ -969,7 +969,7 @@ int aclCreateProcess(char * pCommand)
 //            wPort: telnet监听端口号
 //注    意: Telnet服务器在这里作为调试打印的工具，与ACL进行交互
 //=============================================================================
-ACL_API int aclTelnetInit( BOOL bTelnet, u16 wPort )
+ACL_API int aclTelnetInit(BOOL bTelnet, u16 wPort, const char * pListenIP)
 {
 	TAclTel * tAclTel = NULL;
 	int nErrCode = 0;
@@ -979,6 +979,10 @@ ACL_API int aclTelnetInit( BOOL bTelnet, u16 wPort )
 	if (NULL ==ptCmdList)
 	{
 		return ACL_ERROR_INIT;
+	}
+	if (!pListenIP)
+	{
+		return ACL_ERROR_PARAM;
 	}
     if (0 == wPort)
     {
@@ -992,7 +996,7 @@ ACL_API int aclTelnetInit( BOOL bTelnet, u16 wPort )
         ACL_DEBUG(E_MOD_TELNET, E_TYPE_ERROR, "[aclTelnetInit] get idle Telnet failed\n");
         return ACL_ERROR_INIT;
     }
-    nErrCode = aclCreateNode(getSock3AManger(), "0.0.0.0", wPort, newTelConnProc, tAclTel);
+    nErrCode = aclCreateNode(getSock3AManger(), pListenIP, wPort, newTelConnProc, tAclTel);
     ACL_DEBUG(E_MOD_TELNET, E_TYPE_NOTIF, "[aclTelnetInit]aclTelnetInit port %d\n",wPort);
 
 	//inner command reg:
@@ -1170,6 +1174,15 @@ ACL_API void aclTelWriteInFile(int nWrite)
 }
 
 /*
+命令: aclver
+功能: 获得ACL版本号
+*/
+ACL_API void aclShowVersion()
+{
+	aclPrintf(true, false, "%s\n", getAclVersion());
+}
+
+/*
 Telnet 命令注册函数
 */
 void aclTelnetRegFunc()
@@ -1180,4 +1193,5 @@ void aclTelnetRegFunc()
     aclRegCommand("setpmt",(void *)aclTelnet_SetPmt, "set print module & type ->setpt [module type]");
     aclRegCommand("getps",(void *)aclTelnet_GetPs, "get print set ->getps");
     aclRegCommand("setwf",(void *)aclTelWriteInFile, "write DebugInfo to LogFile:log.log ->setwf [1/0]");
+	aclRegCommand("aclver", (void *)aclShowVersion, "get ACL version");
 }
