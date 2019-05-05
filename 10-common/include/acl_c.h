@@ -368,7 +368,7 @@ DECLARE_HANDLE(HCmdEntry);
 //注    意: 使用ACL前必须调用此函数用于初始化各个模块
 //          
 //=============================================================================
-ACL_API int aclInit(BOOL bTelnet, u16 wTelPort);
+ACL_API int aclInit(BOOL bTelnet, u16 wTelPort, const char * pTelnetBindIP = "0.0.0.0");
 
 
 //=============================================================================
@@ -499,7 +499,7 @@ ACL_API int aclGetInstMsgPoolLeft(HACLINST hAclInst);
 //注    意: 此函数用于创建监听节点，将节点与 newConnectProc函数绑定用于
 //          处理所有的连接请求
 //=============================================================================
-ACL_API int aclCreateTcpNode(u16 wPort);
+ACL_API int aclCreateTcpNode(u16 wPort, const char * pBindIP = "0.0.0.0");
 
 
 //=============================================================================
