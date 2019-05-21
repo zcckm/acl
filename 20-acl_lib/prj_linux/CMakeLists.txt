@@ -25,6 +25,9 @@ if(PROCESSOR_TYPE STREQUAL "x3399")
 	#set debug version options
 	SET(CMAKE_CXX_FLAGS_DEBUG "$ENV{CXXFLAGS} -g")
 	
+	SET(COMMON_LIB_STORE "linux_3399")
+	SET(COMMON_LIB_LINK "linux_3399")
+	
 	#set release version options
 	SET(CMAKE_CXX_FLAGS_RELEASE "$ENV{CXXFLAGS}")
 else()
@@ -35,7 +38,10 @@ else()
     SET(CMAKE_C_COMPILER "g++")
 	
 	#set debug version options
-	SET(CMAKE_CXX_FLAGS_DEBUG "$ENV{CXXFLAGS} -O0 -g -std=c++11")
+	SET(CMAKE_CXX_FLAGS_DEBUG "$ENV{CXXFLAGS} -O0 -g -fPIC -std=c++11")
+	
+	SET(COMMON_LIB_STORE "linux_x86")
+	SET(COMMON_LIB_LINK "linux_x86")
 	
 	#set release version options
 	SET(CMAKE_CXX_FLAGS_RELEASE "$ENV{CXXFLAGS} -O3 -fPIC -std=c++11")
@@ -45,9 +51,9 @@ endif()
 #set lib .so or .a file build store path
 
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
-	SET(LIBRARY_OUTPUT_PATH ${CMAKE_CURRENT_SOURCE_DIR}/../../10-common/lib/debug/linux)
+	SET(LIBRARY_OUTPUT_PATH ${CMAKE_CURRENT_SOURCE_DIR}/../../10-common/lib/debug/${COMMON_LIB_STORE})
 else()
-	SET(LIBRARY_OUTPUT_PATH ${CMAKE_CURRENT_SOURCE_DIR}/../../10-common/lib/release/linux)
+	SET(LIBRARY_OUTPUT_PATH ${CMAKE_CURRENT_SOURCE_DIR}/../../10-common/lib/release/${COMMON_LIB_STORE})
 endif()
 
 #header include file path, similar to -I/usr/include in Makefile
