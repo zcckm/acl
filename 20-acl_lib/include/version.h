@@ -11,7 +11,9 @@
 //******************************************************************************
 #ifndef __VERSION_H__
 #define __VERSION_H__
-
+#include "acl_c.h"
 //ªÒ»°∞Ê±æ∫≈
 const char * getAclVersion();
+
+TAclVersionInfo getAclVersionTag();
 #endif

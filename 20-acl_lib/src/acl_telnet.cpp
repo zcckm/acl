@@ -998,7 +998,11 @@ ACL_API int aclTelnetInit(BOOL bTelnet, u16 wPort, const char * pListenIP)
     }
     nErrCode = aclCreateNode(getSock3AManger(), pListenIP, wPort, newTelConnProc, tAclTel);
     ACL_DEBUG(E_MOD_TELNET, E_TYPE_NOTIF, "[aclTelnetInit]aclTelnetInit port %d\n",wPort);
-
+	if (ACL_ERROR_NOERROR != nErrCode)
+	{
+		ACL_DEBUG(E_MOD_TELNET, E_TYPE_ERROR, "[aclTelnetInit] Create Node Failed Ret: [%d]\n");
+		return nErrCode;
+	}
 	//inner command reg:
 	aclRegCommand("help",(void *)checkCommandHelp,"show reg func help info");
     aclTelnetRegFunc();

@@ -128,7 +128,7 @@ void cbTimerRegCBProc(TAclMessage *ptMsg, HACLINST hInst)
 
 
 
-#define TIMER_HANDLE_TIMEVAL 1//定时器轮循处理间隔
+#define TIMER_HANDLE_TIMEVAL 200//定时器轮循处理间隔
 //定时器管理线程，核心计时线程
 
 //=============================================================================
@@ -318,6 +318,7 @@ void * aclTimerClock(void * pParam)
 // 方案1
 //linux系统延迟的误差很大，利用循环获取时间的方法进行验证，且加上最后一次
 //调用gettimeofday的时间以及误差等因素，考虑使用945ms
+		/*
         if (0 == tv_old.tv_sec)//null
         {
             gettimeofday (&tv_old , NULL);
@@ -333,9 +334,30 @@ void * aclTimerClock(void * pParam)
             aclUDelay(10);
             continue;
         }
-		
+		*/
 //方案2
 //		aclUDelay(1000);
+//方案3，用select
+		fd_set rfds;
+		struct timeval tv;
+		int retval;
+
+		/* Watch stdin (fd 0) to see when it has input. */
+		FD_ZERO(&rfds);
+		//注意，不可以将FD_SET设置到0
+		//因为0表示标准输入，会造成select延迟的紊乱
+		//FD_SET(0, &rfds);
+
+		/* Wait up to specific seconds. */
+		tv.tv_sec = TIMER_HANDLE_TIMEVAL / 1000;
+		tv.tv_usec = (TIMER_HANDLE_TIMEVAL % 1000) * 1000;
+
+		//retval = select(1, &rfds, NULL, NULL, &tv);
+		retval = select(0, &rfds, NULL, NULL, &tv);
+		if (retval != 0)
+		{
+			ACL_DEBUG(E_MOD_TIMER, E_TYPE_ERROR, "[initTimer] timer return [%d]\n", retval);
+		}
 
 #endif
         aclReleaseSem(&g_hTimerSem);

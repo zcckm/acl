@@ -16,6 +16,7 @@
 #include "acl_telnet.h"
 #include "acl_socket.h"
 #include "acl_time.h"
+#include "version.h"
 //#define __STACK_PRINT__
 #ifdef __STACK_PRINT__
 #include <execinfo.h>
@@ -133,6 +134,11 @@ ACL_API int aclPost(u32 dwSrcAppInstAddr,u32 dwDstAppInstAddr,u32 dwNodeID,u16 w
         return ACL_ERROR_FILTER;
     }
     return aclPost__(dwSrcAppInstAddr, dwDstAppInstAddr, dwNodeID, wMsgType, pContent, dwContentLen);
+}
+
+ACL_API int aclGetVersion(TAclVersionInfo & tVersionInfo)
+{
+	tVersionInfo = getAclVersionTag();
 }
 #ifdef __STACK_PRINT__
 void print_stacktrace(int* a, int flag)
