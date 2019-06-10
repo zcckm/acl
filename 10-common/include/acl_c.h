@@ -788,6 +788,24 @@ int unlockLock(H_ACL_LOCK  & hAclLock);
 //=============================================================================
 ACL_API int aclGetClientInfoBySessionId(u32 dwNodeID, TPeerClientInfo& tPeerCliInfo);
 
+//=============================================================================
+//函 数 名：aclGetVersion
+//功	    能：获取ACL版本信息
+//算法实现：
+//全局变量：
+//参	    数：
+//注    意:
+//=============================================================================
+static const int ACL_VERSION_INFO_TOTAL_SIZE = 100;
+typedef struct tagAclVersionInfo
+{
+	int m_nVerMain;
+	int m_nVerSub1;
+	int m_nVerSub2;
+	char m_szInfo[ACL_VERSION_INFO_TOTAL_SIZE];
+}TAclVersionInfo;
+
+ACL_API int aclGetVersion(TAclVersionInfo & tVersionInfo);
 
 //<-----------------------Interface--------------------
 // #ifdef __cplusplus
