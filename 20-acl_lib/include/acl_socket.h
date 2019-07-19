@@ -15,8 +15,8 @@
 #include "acltype.h"
 #include "acl_common.h"
 #include <map>
-#define MAX_SEND_PACKET_SIZE 800*1024
-#define MAX_RECV_PACKET_SIZE 800*1024
+#define MAX_SEND_PACKET_SIZE 1024*1024*3
+#define MAX_RECV_PACKET_SIZE 1024*1024*3
 #define INIT_PACKET_BUFFER_MANAGER (MAX_RECV_PACKET_SIZE * 2)
 #define RS_SKHNDBUF_LEN 1024//rcv dend shake hand buffer len
 #define CHECK_DATA_LEN 64
@@ -86,6 +86,8 @@ ACL_API int aclHBConfirm(HSockManage hSockMng, int nNode);
 ACL_API BOOL IsBigEndian();
 
 ACL_API int aclGetCliInfoBySpecSessionId(HSockManage hSockMng, u32 dwCheckNode, TPeerClientInfo &tPeerCliInfo);
+
+ACL_API char * aclGetNodeBuffer(HSockManage hSockMng, H_ACL_SOCKET hSocket);
 
 //²âÊÔ
 //->begin

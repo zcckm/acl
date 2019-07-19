@@ -35,6 +35,17 @@ typedef struct
 	u32 dwCurePBMSize; // 标记当前pPktBufMng占用空间的大小
 }TPktBufMng;
 
+typedef struct tagDataRSBuffer
+{
+	void * m_pRecvBuffer;
+	void * m_pSendBuffer;
+	tagDataRSBuffer()
+	{
+		m_pRecvBuffer = NULL;
+		m_pSendBuffer = NULL;
+	}
+}TDataRSBuffer;
+
 typedef struct
 {
 	H_ACL_SOCKET m_hSock;
@@ -47,6 +58,8 @@ typedef struct
 	int m_nHBCount;
 	ENODE_TYPE m_eNodeType; //Server Node Client Node Or
 	TPktBufMng tPktBufMng; // packet buffer manager
+
+	TDataRSBuffer m_tDataRSBuffer;  //Data Recv and Send Buffer;
 }TSockNode;
 
 //for store all socket node
@@ -1119,6 +1132,20 @@ ACL_API int aclInsertSelectLoop(HSockManage hSockMng, H_ACL_SOCKET hSock, FEvSel
 					aclFree(ptNewNode->tPktBufMng.pPktBufMng);
 				}
 				ptNewNode->tPktBufMng.pPktBufMng = aclMallocClr(INIT_PACKET_BUFFER_MANAGER);
+
+				if (ptNewNode->m_tDataRSBuffer.m_pRecvBuffer)
+				{
+					aclFree(ptNewNode->m_tDataRSBuffer.m_pRecvBuffer);
+				}
+				ptNewNode->m_tDataRSBuffer.m_pRecvBuffer = aclMallocClr(MAX_RECV_PACKET_SIZE);
+				/*
+				//暂时用不到，就不初始化了
+				if (ptNewNode->m_tDataRSBuffer.m_pSendBuffer)
+				{
+					aclFree(ptNewNode->m_tDataRSBuffer.m_pSendBuffer);
+				}
+				ptNewNode->m_tDataRSBuffer.m_pSendBuffer = aclMallocClr(MAX_SEND_PACKET_SIZE);
+				*/
 			}
 
 			if (ESELECT_CONN & eSelType)
@@ -1245,6 +1272,20 @@ ACL_API int aclRemoveSelectLoop(HSockManage hSockMng, H_ACL_SOCKET hSock, bool b
 				aclFree(ptNewNode->tPktBufMng.pPktBufMng);
 				ptNewNode->tPktBufMng.pPktBufMng = NULL;
 			}
+
+			//释放接收缓冲
+			if (ptNewNode->m_tDataRSBuffer.m_pRecvBuffer)
+			{
+				aclFree(ptNewNode->m_tDataRSBuffer.m_pRecvBuffer);
+				ptNewNode->m_tDataRSBuffer.m_pRecvBuffer = NULL;
+			}
+			//释放发送缓冲
+			if (ptNewNode->m_tDataRSBuffer.m_pSendBuffer)
+			{
+				aclFree(ptNewNode->m_tDataRSBuffer.m_pSendBuffer);
+				ptNewNode->m_tDataRSBuffer.m_pSendBuffer = NULL;
+			}
+
 			//根据需要，决定是否需要重置Socket
 			aclResetSockNode(hSockMng, i, bCloseSock);
 			nFindNode = i;
@@ -1812,4 +1853,19 @@ ACL_API int aclGetPBMLeftDataSize(HSockManage hSockMng, H_ACL_SOCKET hSock, int 
 
 	nLeftDataLen = ptNewNode->tPktBufMng.dwCurePBMSize;
 	return ACL_ERROR_NOERROR;
+}
+
+ACL_API char *  aclGetNodeBuffer(HSockManage hSockMng, H_ACL_SOCKET hSocket)
+{
+	TSockManage * ptSockManage = (TSockManage *)hSockMng;
+	if (!ptSockManage)
+	{
+		return NULL;
+	}
+	TSockNode * pSockNode = ptSockManage->m_ptSockNodeArr;
+	if (!pSockNode)
+	{
+		return NULL;
+	}
+	return (char*)pSockNode->m_tDataRSBuffer.m_pRecvBuffer;
 }

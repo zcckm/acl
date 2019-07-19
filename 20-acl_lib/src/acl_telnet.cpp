@@ -738,7 +738,8 @@ s32 telResetParam(HAclTel hAclTel)
 //=============================================================================
 s32 newTelMsgProcess(H_ACL_SOCKET nFd, ESELECT eEvent, void* pContext)
 {
-	s8 szRcvData[MAX_RECV_PACKET_SIZE] = {0};
+#define TELNET_RECV_DATA_LEN 40*1024
+	s8 szRcvData[TELNET_RECV_DATA_LEN] = {0};
 	TAclTel * ptAclTel = (TAclTel *)pContext;
 	int nRcvSize = 0, i = 0;
 	u32 dwParseValue = 0;
@@ -750,7 +751,7 @@ s32 newTelMsgProcess(H_ACL_SOCKET nFd, ESELECT eEvent, void* pContext)
 // 		return ACL_ERROR_INVALID;
 // 	}
 
-	nRcvSize = aclTcpRecv(nFd, szRcvData, MAX_RECV_PACKET_SIZE);
+	nRcvSize = aclTcpRecv(nFd, szRcvData, TELNET_RECV_DATA_LEN);
 	if (0 >= nRcvSize)//attempt to disconnect current connect
 	{
         ACL_DEBUG(E_MOD_TELNET, E_TYPE_WARNNING, "[newTelMsgProcess] telnet is disconnected or error Happen, Recv Ret: [%d]\n", nRcvSize);

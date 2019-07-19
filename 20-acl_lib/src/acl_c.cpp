@@ -139,6 +139,7 @@ ACL_API int aclPost(u32 dwSrcAppInstAddr,u32 dwDstAppInstAddr,u32 dwNodeID,u16 w
 ACL_API int aclGetVersion(TAclVersionInfo & tVersionInfo)
 {
 	tVersionInfo = getAclVersionTag();
+	return ACL_ERROR_NOERROR;
 }
 #ifdef __STACK_PRINT__
 void print_stacktrace(int* a, int flag)

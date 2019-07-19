@@ -331,7 +331,7 @@ void aclShowApp()
 void cbNtWkMsgHd(TAclMessage *ptMsg, HACLINST hInst)
 {
 	//处理即将发送的消息
-	char szSndData[MAX_SEND_PACKET_SIZE] = {0};
+	static char szSndData[MAX_SEND_PACKET_SIZE] = {0};
 	TAclMessage * ptAclMsg = NULL;
 	ptAclMsg = (TAclMessage *)szSndData;
 	//regroup send Packet
@@ -362,7 +362,7 @@ void cbHBDetect(TAclMessage *ptMsg, HACLINST hInst)
 {
 	//收到心跳包并回复(Client)
 	//或者收到发送心跳包命令(Server)
-	char szSndData[MAX_SEND_PACKET_SIZE] = {0};
+	static char szSndData[MAX_SEND_PACKET_SIZE] = {0};
 	TAclMessage * ptAclMsg = NULL;
 	ptAclMsg = (TAclMessage *)szSndData;
     ACL_DEBUG(E_MOD_HB,E_TYPE_DEBUG, "[cbHBDetect] DetectRecv  SID:%d MSG:%d\n",ptMsg->m_dwSessionID,ptMsg->m_wMsgType);
@@ -1059,7 +1059,7 @@ void getRandomByte(void *buf, size_t len)
 		memcpy(&lp[i], &ranbuf, len);
 	}
 }
-int aclCheckPack(char * pPackData, u16 wPackLen)
+int aclCheckPack(char * pPackData, u32 wPackLen)
 {
 	TAclMessage * ptAclMsg = NULL;
 	if (NULL == pPackData || 0 == wPackLen)
@@ -1127,7 +1127,14 @@ int aclCheckPack(char * pPackData, u16 wPackLen)
 s32 aclNewMsgProcess(H_ACL_SOCKET nFd, ESELECT eEvent, void* pContext)
 {
 	HSockManage hSockmng = (HSockManage)getSockDataManger();
-	char szRcvData[MAX_RECV_PACKET_SIZE] = {0};
+
+	char * szRcvData  = aclGetNodeBuffer(hSockmng, nFd);
+	if (!szRcvData)
+	{
+		ACL_DEBUG(E_MOD_MSG, E_TYPE_ERROR, "[aclNewMsgProcess] Buffer is empty\n");
+		return ACL_ERROR_FAILED;
+	}
+	//char szRcvData[MAX_RECV_PACKET_SIZE] = {0};
 	TAclMessage * ptAclMsg = NULL;
 	int nRet = 0,nRcvSize = 0;
 
